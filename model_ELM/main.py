@@ -74,8 +74,7 @@ class ELMcase():
       self.co2_file = inputdata+'/atm/datm7/CO2/fco2_datm_rcp4.5_1765-2500_c130312.nc'
       self.cppdefs=''
       self.srcmods=''
-
-#  def read_parm_list(self, parm_list=parm_list):
+      self.output={}
 
   def setup_ensemble(self, sampletype='monte_carlo',parm_list='', ensemble_file='', \
           np_ensemble=64, nsamples=100):
@@ -85,7 +84,7 @@ class ELMcase():
     else:
       self.ensemble_file = ensemble_file
       self.samples = np.transpose(np.loadtxt(ensemble_file))
-      self.n_ensemble = np.shape(self.samples)[1]
+      self.nsamples = np.shape(self.samples)[1]
     self.np_ensemble=np_ensemble
     create_ensemble_script(self)
 
@@ -131,7 +130,7 @@ class ELMcase():
           for s in metinfo:
               if s.split(':')[0] == mettype:
                   self.metdir = self.inputdata_path+'/'+s.split(':')[1].strip()
-                  if (self.is_bypass):
+                  if (self.is_bypass()):
                       self.metdir = self.metdir+'/cpl_bypass_full'
           metinfo.close()
         else:
@@ -139,7 +138,7 @@ class ELMcase():
           print('No site, mettype or metdir specified.  Defaulting to GSWP3')
           self.forcing='gswp3'
           self.metdir = self.inputdata_path+'/atm/datm7/atm_forcing.datm7.GSWP3.0.5d.v2.c180716'
-          if (self.is_bypass):
+          if (self.is_bypass()):
               self.metdir = self.metdir+'/cpl_bypass_full'
     else:
         #Met data directory provided.  Get met type.
@@ -303,7 +302,10 @@ class ELMcase():
         if ('20TR' in self.casename or 'trans' in self.casename):
             self.met_endyear = 2014
         self.nyears_spinup=20
-           
+    #force run length to be multiple of spinup
+    if (not '20TR' in self.compset and not 'trans' in self.casename):
+      while (self.run_n % self.nyears_spinup != 0):
+        self.run_n = self.run_n+1
 
   def xmlchange(self, variable, value='', append=''):
       os.chdir(self.casedir)
@@ -342,8 +344,8 @@ class ELMcase():
         self.xmlchange('DATM_MODE',value='CLMCRUNCEP') 
       else:
         self.xmlchange('DATM_MODE',value='CLM1PT') 
-        self.xmlchange('DATM_CLMNCEP_YR_START',value=self.met_startyear)
-        self.xmlchange('DATM_CLMNCEP_YR_END',value=self.met_endyear)
+        self.xmlchange('DATM_CLMNCEP_YR_START',value=str(self.met_startyear))
+        self.xmlchange('DATM_CLMNCEP_YR_END',value=str(self.met_endyear))
     #Change simulation timestep
     if (float(self.tstep) != 0.5):
       self.xmlchange('ATM_NCPL',value=str(int(24/float(self.tstep))))
@@ -376,7 +378,7 @@ class ELMcase():
     # for spinup and transient runs, PIO_TYPENAME is pnetcdf, which now not works well
     if('mac' in self.machine or 'cades' in self.machine or 'linux' in self.machine): 
       self.xmlchange('PIO_TYPENAME',value='netcdf')
- 
+
     if (self.has_finidat):
         self.customize_namelist(variable='finidat',value="'"+self.finidat+"'")
     #Setup the new case
@@ -425,7 +427,7 @@ class ELMcase():
         #    self.customize_namelist(variable='use_fates_logging',value='.true.')
     self.customize_namelist(variable='nyears_ad_carbon_only',value='25')
     self.customize_namelist(variable='spinup_mortality_factor',value='10')
-    if (self.is_bypass):
+    if (self.is_bypass()):
         #if using coupler bypass, need to add the following
         self.customize_namelist(variable='metdata_type',value="'"+self.forcing+"'")
         self.customize_namelist(variable='metdata_bypass',value="'"+self.metdir+"'")
@@ -447,14 +449,14 @@ class ELMcase():
       self.xmlchange('LND_DOMAIN_FILE',value=domainfile)
 
     #global CPPDEF modifications
-    if (self.is_bypass):
+    if (self.is_bypass()):
       macrofiles=['./Macros.make','./Macros.cmake']
       for f in macrofiles:
           if (os.path.isfile(f)):
             infile  = open(f)
             outfile = open(f+'.tmp','a')  
             for s in infile:
-              if ('CPPDEFS' in s and self.is_bypass):
+              if ('CPPDEFS' in s and self.is_bypass()):
                  stemp = s[:-1]+' -DCPL_BYPASS\n'
                  outfile.write(stemp)
               elif ('llapack' in s):
@@ -489,6 +491,16 @@ class ELMcase():
 
   def build_case(self, clean=True):
       os.chdir(self.casedir)
+      #If using DATM, set the resolution to ELM_USRDAT
+      if (not self.is_bypass()):
+        #assume single point
+        self.xmlchange('LND_GRID',value='ELM_USRDAT')
+        self.xmlchange('ATM_GRID',value='ELM_USRDAT')
+        self.xmlchange('LND_NX',value='1')
+        self.xmlchange('LND_NY',value='1')
+        self.xmlchange('ATM_NX',value='1')
+        self.xmlchange('ATM_NY',value='1')
+        result = os.system('./case.setup')
       if (self.dobuild):
         if (clean):
           os.system('./case.build --clean-all')
@@ -500,7 +512,7 @@ class ELMcase():
       else:
         self.xmlchange('BUILD_COMPLETE',value='TRUE')
       #If using DATM, customize the stream files
-      if (not self.is_bypass):
+      if (not self.is_bypass()):
           self.modify_datm_streamfiles()
       #Copy customized parameter, surface and domain files to run directory
       os.system('cp '+self.OLMTdir+'/temp/*param*.nc '+self.rundir)
@@ -515,7 +527,7 @@ class ELMcase():
   def modify_datm_streamfiles(self):
     #stream file modifications for datm runs
     #Datm mods/ transient CO2 patch for transient run (datm buildnml mods)
-    if (self.is_bypass):
+    if (not self.is_bypass()):
       os.chdir(self.casedir)
       myinput  = open('./Buildconf/datmconf/datm_in')
       myoutput = open('user_nl_datm','w')
@@ -524,23 +536,23 @@ class ELMcase():
               if ('trans' in self.casename or '20TR' in self.compset):
                   mypresaero = '"datm.streams.txt.presaero.trans_1850-2000 1850 1850 2000"'
                   myco2      = ', "datm.streams.txt.co2tseries.20tr 1766 1766 2010"'
-              elif ('1850' in compset):
+              elif ('1850' in self.compset):
                   mypresaero = '"datm.streams.txt.presaero.clim_1850 1 1850 1850"'
                   myco2=''
               else:
                   mypresaero = '"datm.streams.txt.presaero.clim_2000 1 2000 2000"'
                   myco2=''
               if (self.site == ''):
-                  myoutput.write(' streams = "datm.streams.txt.CLMCRUNCEP.Solar '+str(self.met_align_year)+ \
+                  myoutput.write(' streams = "datm.streams.txt.CLMCRUNCEP.Solar '+str(self.met_alignyear)+ \
                                      ' '+str(self.met_startyear)+' '+str(self.met_endyear)+'  ", '+ \
-                                     '"datm.streams.txt.CLMCRUNCEP.Precip '+str(myalign_year)+ \
+                                     '"datm.streams.txt.CLMCRUNCEP.Precip '+str(self.met_alignyear)+ \
                                      ' '+str(self.met_startyear)+' '+str(self.met_endyear)+'  ", '+ \
-                                     '"datm.streams.txt.CLMCRUNCEP.TPQW '+str(myalign_year)+ \
+                                     '"datm.streams.txt.CLMCRUNCEP.TPQW '+str(self.met_alignyear)+ \
                                      ' '+str(self.met_startyear)+' '+str(self.met_endyear)+'  ", '+mypresaero+myco2+ \
                                      ', "datm.streams.txt.topo.observed 1 1 1"\n')
               else:
-                  myoutput.write(' streams = "datm.streams.txt.CLM1PT.ELM_USRDAT '+str(myalign_year)+ \
-                                     ' '+str(startyear)+' '+str(endyear)+'  ", '+mypresaero+myco2+ \
+                  myoutput.write(' streams = "datm.streams.txt.CLM1PT.ELM_USRDAT '+str(self.met_alignyear)+ \
+                                     ' '+str(self.met_startyear)+' '+str(self.met_endyear)+'  ", '+mypresaero+myco2+ \
                                      ', "datm.streams.txt.topo.observed 1 1 1"\n')
           elif ('streams' in s):
               continue  #do nothing
@@ -557,7 +569,7 @@ class ELMcase():
       myinput.close()
       myoutput.close()
       #Modify aerosol deposition file
-      if (not self.is_bypass and self.site != ''):
+      if (not self.is_bypass() and self.site != ''):
         if ('1850' in self.compset):
           myinput  = open('./Buildconf/datmconf/datm.streams.txt.presaero.clim_1850')
           myoutput = open('./user_datm.streams.txt.presaero.clim_1850','w')
@@ -580,14 +592,14 @@ class ELMcase():
           myinput.close()
           myoutput.close()
       #reverse directories for CLM1PT and site
-      if (options.forcing == 'site'):
+      if (self.forcing == 'site'):
           myinput  = open('./Buildconf/datmconf/datm.streams.txt.CLM1PT.ELM_USRDAT')
           myoutput = open('./user_datm.streams.txt.CLM1PT.ELM_USRDAT','w')
           for s in myinput:
               if ('CLM1PT_data' in s):
                   temp = s.replace('CLM1PT_data', 'TEMPSTRING')
-                  s    = temp.replace(str(numxpts)+'x'+str(numypts)+'pt'+'_'+self.site, 'CLM1PT_data')
-                  temp  =s.replace('TEMPSTRING', str(numxpts)+'x'+str(numypts)+'pt'+'_'+self.site)
+                  s    = temp.replace('1x1pt'+'_'+self.site, 'CLM1PT_data')
+                  temp  =s.replace('TEMPSTRING', '1x1pt'+'_'+self.site)
                   myoutput.write(temp)
               elif (('ED' in self.compset or 'FATES' in self.compset) and 'FLDS' in s):
 #              if (('ED' in compset or 'FATES' in compset) and 'FLDS' in s):
@@ -605,9 +617,13 @@ class ELMcase():
 
   def submit_case(self,depend=-1,noslurm=False,ensemble=False):
     #Create a pickle file of the model object for later use
-    with open(self.casedir+'/OLMTdata.pkl','wb') as file_out:
-        pickle.dump(self, file_out)
+    #Keep a copy in the case directory and OLMT directory
+    self.create_pkl(outdir=self.casedir)
+    self.create_pkl(outdir=self.OLMTdir+'/pklfiles')
 
+    mysubmit='sbatch'
+    if noslurm:
+        mysubmit=''
     #Submit the case with dependency if requested
     #Return the job id
     if (ensemble):
@@ -618,10 +634,18 @@ class ELMcase():
         scriptfile = './case.submit'
     os.chdir(self.casedir)
     if (depend > 0 and not noslurm):
-      cmd = [scriptfile,'--prereq',str(depend)]
+      if (ensemble):
+          cmd = [mysubmit,'--dependency=afterok:'+str(depend),scriptfile]
+      else:
+          cmd = [scriptfile,'--prereq',str(depend)]
     else:
-      cmd = [scriptfile]
-      
+      if (ensemble):
+          cmd = [mysubmit,scriptfile]
+      else:
+          cmd = [scriptfile]
+    print(cmd)  
+    if (depend > 0):
+      stop
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     output = result.stdout.strip()
     if (not noslurm):
@@ -631,6 +655,12 @@ class ELMcase():
       jobnum=0
     os.chdir(self.OLMTdir)
     return jobnum
+
+  def create_pkl(self, outdir='./pklfiles'):
+    os.chdir(self.OLMTdir)
+    os.system('mkdir -p pklfiles')
+    with open(outdir+'/'+self.casename+'.pkl','wb') as file_out:
+        pickle.dump(self, file_out)
 
 
 # Dynamically import and add methods to ELMcase
@@ -642,9 +672,10 @@ def _add_methods_from_module(module):
                 setattr(ELMcase, name, method)
 
 # Import modules and add their functions as methods to CLMcase
-from . import ensemble, makepointdata, netcdf4_functions, set_histvars
+from . import ensemble, makepointdata, netcdf4_functions, set_histvars, postprocess
 
 _add_methods_from_module(ensemble)
 _add_methods_from_module(makepointdata)
 _add_methods_from_module(netcdf4_functions)
 _add_methods_from_module(set_histvars)
+_add_methods_from_module(postprocess)

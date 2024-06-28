@@ -10,7 +10,7 @@ def set_histvars(self,spinup=-1,hist_mfilt=-9999,hist_nhtfrq=-9999):
                     'DEADSTEMC', 'DEADCROOTC', 'FROOTC', 'LIVESTEMC', 'LIVECROOTC', 'TOTVEGC', 'N_ALLOMETRY','P_ALLOMETRY',\
                     'TOTCOLC', 'TOTLITC', 'BTRAN', 'SCALARAVG_vr', 'CWDC', 'QVEGE', 'QVEGT', 'QSOIL', 'QDRAI', \
                     'QRUNOFF', 'FPI', 'FPI_vr', 'FPG', 'FPI_P','FPI_P_vr', 'FPG_P', 'CPOOL','NPOOL', 'PPOOL', 'SMINN', 'HR_vr']
-      if ('ICBCLM45CB' in self.compset):
+      if ('ICBELMBC' in self.compset):
         var_list_spinup = ['FPSN','TLAI','QVEGT','QVEGE','QSOIL','EFLX_LH_TOT','FSH','RH2M','TSA','FSDS','FLDS','PBOT', \
                          'WIND','BTRAN','DAYL','T10','QBOT']
 
@@ -24,11 +24,15 @@ def set_histvars(self,spinup=-1,hist_mfilt=-9999,hist_nhtfrq=-9999):
       vst = ''
       for v in var_list_spinup:
         vst=vst+"'"+v+"',"
-      self.customize_namelist(variable='hist_empty_htapes',value='.true.')
-      self.customize_namelist(variable='hist_fincl1',value=vst[:-1])
-      self.customize_namelist(variable='hist_mfilt',value='1,1')
-      self.customize_namelist(variable='hist_nhtfrq',value=str(self.nyears_spinup*-8760)+','+str(self.nyears_spinup*-8760))
+      if (not 'ELMBC' in self.compset):
+        self.customize_namelist(variable='hist_empty_htapes',value='.true.')
+        self.customize_namelist(variable='hist_fincl1',value=vst[:-1])
+        self.customize_namelist(variable='hist_mfilt',value='1,1')
+        self.customize_namelist(variable='hist_nhtfrq',value=str(self.nyears_spinup*-8760)+','+str(self.nyears_spinup*-8760))
+      else:
+        self.customize_namelist(variable='hist_mfilt',value='365')
+        self.customize_namelist(variable='hist_nhtfrq',value='-24')
    else:
       #Transient simulation
-      self.customize_namelist(variable='hist_mfilt',value=365)
-      self.customize_namelist(variable='hist_nhtfrq',value=-24)
+      self.customize_namelist(variable='hist_mfilt',value='365')
+      self.customize_namelist(variable='hist_nhtfrq',value='-24')

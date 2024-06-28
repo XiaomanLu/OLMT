@@ -9,17 +9,16 @@ from optparse import OptionParser
 
 #MPI python code used to manage the ensemble simulations 
 #  and perform post-processing of model output.
-#  DMRicciuto 7/14/2016
 
 parser = OptionParser()
 
 
-parser.add_option("--casedir", dest="casedir", default="", \
-                  help="Case directory")
+parser.add_option("--case", dest="case", default="", \
+                  help="Case name")
 (options, args) = parser.parse_args()
 
 #Load case object
-myfile=open(options.casedir+'/OLMTdata.pkl','rb')
+myfile=open('pklfiles/'+options.case+'.pkl','rb')
 mycase=pickle.load(myfile)
 
 def count_active_processes(processes):
@@ -38,12 +37,11 @@ n_job = 1
 
 #Run the simulations 
 while (n_job <= mycase.nsamples):
-  while (count_active_processes(processes) < int(mycase.np_ensemble)):
+  if (count_active_processes(processes) <= int(mycase.np_ensemble)):
     jobst = str(100000+n_job)
     rundir = mycase.runroot+'/UQ/'+mycase.casename+'/g'+jobst[1:]+'/'
     log_file_path = f"{rundir}e3sm_log.txt"
     #Copy relevant files
-
     mycase.ensemble_copy(n_job)
     with open(log_file_path, "w") as log_file:
        command = ['srun -n 1 -c 1 '+mycase.exeroot+'/e3sm.exe']
@@ -51,9 +49,8 @@ while (n_job <= mycase.nsamples):
        process = subprocess.Popen(command, shell=True, stderr=subprocess.PIPE, cwd=rundir, stdout=log_file)
        processes.append(process)
     n_job=n_job+1
-    print(count_active_processes(processes), mycase.np, n_job)
+  else:
     time.sleep(1)
-  time.sleep(1)
 
 #wait on remaining processes
 for process in processes:

@@ -47,11 +47,12 @@ def create_ensemble_script(self, walltime=6):
         if s.split('=')[0].strip() == 'LD_LIBRARY_PATH':
             ldpath = s.split('=')[1].strip()
     softenv.close()
+    nnodes = int(np.ceil(self.nsamples/self.np_ensemble))
     myfile = open('case.submit_ensemble','w')
     myfile.write('#!/bin/bash -e\n\n')
     myfile.write('#SBATCH -t '+str(walltime)+':00:00\n')
     myfile.write('#SBATCH -J ens_'+self.casename+'\n')
-    myfile.write('#SBATCH --nodes=1\n')  #FIX
+    myfile.write('#SBATCH --nodes='+str(nnodes)+'\n')  #FIX
     if (self.project != ''):
         myfile.write('#SBATCH -A '+self.project+'\n')
     myfile.write('#SBATCH -p batch\n')
@@ -59,9 +60,10 @@ def create_ensemble_script(self, walltime=6):
     myfile.write('export LD_LIBRARY_PATH='+ldpath+'\n\n')
     myfile.write('./preview_namelists\n\n')
     myfile.write('cd '+self.OLMTdir+'\n')
-    myfile.write('./manage_ensemble.py --casedir '+self.caseroot \
-            +'/'+self.casename+'\n')
-    myfile.close()   
+    myfile.write('./manage_ensemble.py --case '+self.casename+'\n')
+    myfile.close()  
+    os.system('chmod u+x case.submit_ensemble')
+    self.rundir_UQ = self.runroot+'/UQ/'+self.casename
 
 def ensemble_copy(self, ens_num):
 
