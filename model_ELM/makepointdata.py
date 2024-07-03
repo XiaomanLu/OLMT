@@ -18,7 +18,7 @@ from netCDF4 import Dataset
 #                  help = 'variable name(s) in User-provided surface data nc file, separated by ","')
 #(self, args) = parser.parse_args()
 
-def makepointdata(self,input_file):
+def makepointdata(self, input_file):
  lat_bounds = self.lat_bounds
  lon_bounds = self.lon_bounds
  self.point_list = ''
@@ -379,7 +379,6 @@ def makepointdata(self,input_file):
             ierr = nffun.putvar(domainfile_new, 'xv', xv)
             ierr = nffun.putvar(domainfile_new, 'yv', yv)
             ierr = nffun.putvar(domainfile_new, 'area', area)
-            
         #elif (self.point_area_km2 != None or self.point_area_deg2 != None):
         #    xc[0] = lon[n]
         #    yc[0] = lat[n]
@@ -778,8 +777,8 @@ def makepointdata(self,input_file):
                   mydata_new[vsurf][0,0] = mydata_1km[vsurf][yind,xind]+pervious
                 else:
                   mydata_new[vsurf][0,0] = mydata_1km[vsurf][yind,xind]
-            mydata_new['LATIXY'][:]=lat_bounds[0]
-            mydata_new['LONGXY'][:]=lon_bounds[0]
+            #mydata_new['LATIXY'][:]=lat_bounds[0]
+            #mydata_new['LONGXY'][:]=lon_bounds[0]
             mydata_new.close()
             mydata_1km.close()
         if (int(self.mypft) >= 0):
@@ -1072,4 +1071,3 @@ def makepointdata(self,input_file):
       ierr = os.system('mv '+pftdyn_new+'.tmp '+pftdyn_new)
 
   print("INFO: Extracted and Compiled '"+ pftdyn_new + "' FROM: '" + pftdyn_orig+"'! \n")
-

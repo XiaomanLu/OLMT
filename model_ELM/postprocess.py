@@ -96,14 +96,16 @@ def postprocess(self, var, index=0, gindex=0, startyear=-1, endyear=9999, hnum=0
     else:
         values_out = values[:]
         nperyear_out = nperyear
-    self.output[var]=values_out
+    if (ens_num == 1):
+        self.output[var] = np.zeros([len(values_out),self.nsamples],float)
+        self.output[var][:,0] = values_out
+    elif (ens_num > 1):
+        self.output[var][:,ens_num-1] = values_out
+    else:
+        self.output[var]=values_out
     self.output['taxis'] = np.zeros([len(values_out)],float)
     for t in range(0,len(values_out)):
         self.output['taxis'][t] = startyear+t/nperyear_out
-    if (ens_num > 0):
-      #write the processed data to text for faster postprocessing of the ensemble.
-      os.system('mkdir -p postprocessed')
-      np.savetxt('./postprocessed/'+var+'_'+str(startyear)+'-'+str(endyear)+'.txt',self.output[var][:])
     if (plot):
         plt.plot(self.output['taxis'],self.output[var],'k')
         plt.legend([var])

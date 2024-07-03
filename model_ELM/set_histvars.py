@@ -30,9 +30,27 @@ def set_histvars(self,spinup=-1,hist_mfilt=-9999,hist_nhtfrq=-9999):
         self.customize_namelist(variable='hist_mfilt',value='1,1')
         self.customize_namelist(variable='hist_nhtfrq',value=str(self.nyears_spinup*-8760)+','+str(self.nyears_spinup*-8760))
       else:
-        self.customize_namelist(variable='hist_mfilt',value='365')
-        self.customize_namelist(variable='hist_nhtfrq',value='-24')
+        if (not self.postproc_vars):
+          self.customize_namelist(variable='hist_mfilt',value='365')
+          self.customize_namelist(variable='hist_nhtfrq',value='-24')
+        else:
+          vst_pp=''  
+          for v in self.postproc_vars:
+              vst_pp=vst_pp+"'"+v+"',"
+          #Write daily for requested postprocessed variables
+          self.customize_namelist(variable='hist_mfilt',value='1,365')
+          self.customize_namelist(variable='hist_nhtfrq',value='-8760,-24')
+          self.customize_namelist(variable='hist_fincl2',value=vst_pp[:-1])
    else:
       #Transient simulation
-      self.customize_namelist(variable='hist_mfilt',value='365')
-      self.customize_namelist(variable='hist_nhtfrq',value='-24')
+      if (not self.postproc_vars):
+        self.customize_namelist(variable='hist_mfilt',value='365')
+        self.customize_namelist(variable='hist_nhtfrq',value='-24')
+      else:
+        for v in self.postproc_vars:
+          vst_pp=''
+          vst_pp=vst_pp+"'"+v+"',"
+          #Write daily for requested postprocessed variables
+          self.customize_namelist(variable='hist_mfilt',value='1,365')
+          self.customize_namelist(variable='hist_nhtfrq',value='-8760,-24')
+          self.customize_namelist(variable='hist_fincl2',value=vst_pp[:-1])  

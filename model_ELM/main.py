@@ -4,7 +4,7 @@ import re, subprocess
 import pickle
 from datetime import datetime
 from .makepointdata import makepointdata
-from .set_histvars import set_histvars
+from .set_histvars import *
 from .ensemble import *
 
 
@@ -12,7 +12,8 @@ class ELMcase():
   def __init__(self,caseid='',compset='ICBELMBC',suffix='',site='',sitegroup='AmeriFlux', \
             res='',tstep=1,np=1,nyears=1,startyear=-1, machine='', \
             exeroot='', modelroot='', runroot='',caseroot='',inputdata='', \
-            region_name='', lat_bounds=[-90,90],lon_bounds=[-180,180]):
+            region_name='', lat_bounds=[-90,90],lon_bounds=[-180,180], \
+            namelist_options=[]):
 
       self.model_name='elm'
       self.modelroot=modelroot
@@ -75,6 +76,10 @@ class ELMcase():
       self.cppdefs=''
       self.srcmods=''
       self.output={}
+      self.postproc_vars=[]
+      self.postproc_startyear=-1
+      self.postproc_endyear=9999
+      self.namelist_options=namelist_options
 
   def setup_ensemble(self, sampletype='monte_carlo',parm_list='', ensemble_file='', \
           np_ensemble=64, nsamples=100):
@@ -95,6 +100,9 @@ class ELMcase():
         self.machine = 'cades-baseline'
     else:
       self.machine=machine
+    self.noslurm=False
+    if ('linux' in self.machine or 'ubuntu' in self.machine):
+        self.noslurm=True
 
   def get_model_directories(self):
     if (not os.path.exists(self.modelroot)):
@@ -259,11 +267,11 @@ class ELMcase():
     mysimyr=1850
 
     if (surffile == '' and makesurfdat):
-      makepointdata(self, self.surfdata_global)
+      self.makepointdata(self.surfdata_global)
     if (domainfile == '' and makedomain):
-      makepointdata(self, self.domain_global)
+      self.makepointdata(self.domain_global)
     if (pftdynfile == '' and makepftdyn and not (self.nopftdyn)):
-      makepointdata(self, self.pftdyn_global)
+      self.makepointdata(self.pftdyn_global)
     if (domainfile != ''):
       self.domainfile=domainfile
       print('\n -----INFO: using user-provided DOMAIN')
@@ -290,12 +298,13 @@ class ELMcase():
             self.met_alignyear = int(row[8])
             if len(row) == 10:
                 self.timezone = int(row[9])
-    self.nyears_spinup=self.met_endyear-self.met_startyear+1
+      self.nyears_spinup=self.met_endyear-self.met_startyear+1
     if (self.forcing != 'site'):
         #Assume reanalysis
         self.met_startyear = 1901
         if ('daymet' in self.forcing):
             self.met_startyear = 1980
+            self.met_endyear = 1999
         if ('Qian' in self.forcing):
             self.met_startyear = 1948
         endyear = self.met_startyear+20-1
@@ -434,6 +443,10 @@ class ELMcase():
         self.customize_namelist(variable='co2_file', value="'"+self.co2_file+"'")
         self.customize_namelist(variable='aero_file', value="'"+self.inputdata_path+"/atm/cam/chem/" \
                 +"trop_mozart_aero/aero/aerosoldep_rcp4.5_monthly_1849-2104_1.9x2.5_c100402.nc'")
+    #add user namelist options
+    if (self.namelist_options):
+        for n in self.namelist_options:
+            self.customize_namelist(variable=n.split('=')[0], value=n.split('=')[1])
     #set domain file information
     if (self.domainfile == ''):
       self.xmlchange('ATM_DOMAIN_PATH',value='"\${RUNDIR}"')
@@ -615,15 +628,13 @@ class ELMcase():
       else:
         os.system(os.path.abspath(self.modelroot)+'/cime/CIME/Tools/preview_namelists')
 
-  def submit_case(self,depend=-1,noslurm=False,ensemble=False):
+  def submit_case(self,depend=-1,ensemble=False):
     #Create a pickle file of the model object for later use
     #Keep a copy in the case directory and OLMT directory
     self.create_pkl(outdir=self.casedir)
     self.create_pkl(outdir=self.OLMTdir+'/pklfiles')
 
     mysubmit='sbatch'
-    if noslurm:
-        mysubmit=''
     #Submit the case with dependency if requested
     #Return the job id
     if (ensemble):
@@ -633,22 +644,19 @@ class ELMcase():
     else:
         scriptfile = './case.submit'
     os.chdir(self.casedir)
-    if (depend > 0 and not noslurm):
+    if (depend > 0 and not self.noslurm):
       if (ensemble):
           cmd = [mysubmit,'--dependency=afterok:'+str(depend),scriptfile]
       else:
           cmd = [scriptfile,'--prereq',str(depend)]
     else:
-      if (ensemble):
+      if (ensemble and not self.noslurm):
           cmd = [mysubmit,scriptfile]
       else:
           cmd = [scriptfile]
-    print(cmd)  
-    if (depend > 0):
-      stop
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     output = result.stdout.strip()
-    if (not noslurm):
+    if (not self.noslurm):
       jobnum = int(output.split()[-1])
       print('submitted '+str(jobnum))
     else:
@@ -667,9 +675,12 @@ class ELMcase():
 def _add_methods_from_module(module):
     for name in dir(module):
         if not name.startswith("_"):
-            method = getattr(module, name)
-            if callable(method):
+            try:
+              method = getattr(module, name)
+              if callable(method):
                 setattr(ELMcase, name, method)
+            except Exception as e:
+                print(f"Error adding method {name}: {e}")
 
 # Import modules and add their functions as methods to CLMcase
 from . import ensemble, makepointdata, netcdf4_functions, set_histvars, postprocess
