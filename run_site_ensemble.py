@@ -16,7 +16,7 @@ site='US-MOz'      #site name
 mettype='site'     #met data type
 machine  = 'cades-baseline'
 
-runtype = 'SP'
+runtype = 'BGC'
 if (runtype == 'BGC'):
   compsets = ['ICB1850CNRDCTCBC','ICB1850CNPRDCTCBC','ICB20TRCNPRDCTCBC']
   suffix   = ['_ad_spinup','','']      #Identifer suffix
@@ -30,15 +30,15 @@ elif (runtype == 'SP'):
   startyear = 1985
 
 #ensemble information
-parm_list='parm_list_test'       #parameter list file (leave blank if not running ensemble)
+parm_list='parm_list_test'       #parameter list file 
 np_ensemble = 128  #number of ensemble numbers to run in parallel
 nsamples= 200
 ensemble_file = '' #File containing samples (if blank, OLMT will generate one)
 
 #namelist options
 namelist_options = []
-namelist_options.append("startdate_add_co2 = '18510101'")
-namelist_options.append("add_co2 = 150")
+#namelist_options.append("startdate_add_co2 = '18510101'")
+#namelist_options.append("add_co2 = 150")
 
 #Output variables to postprocess ensemble
 postproc_vars=['FPSN','EFLX_LH_TOT']
@@ -72,10 +72,14 @@ for c in range(0,ncases):
       cases[c].set_finidat_file(finidat_case=cases[depends[c]].casename, \
               finidat_year=finidat_year)
   #Set up the case
-  cases[c].postproc_vars = postproc_vars
-  cases[c].postproc_startyear = postproc_startyear
-  cases[c].postproc_endyear = postproc_endyear
-  cases[c].postproc_freq = postproc_freq
+  if (ncases == 1 or '20TR' in compsets[c] or 'trans' in compsets[c]):
+    cases[c].postproc_vars = postproc_vars
+    cases[c].postproc_startyear = postproc_startyear
+    cases[c].postproc_endyear = postproc_endyear
+    cases[c].postproc_freq = postproc_freq
+  else:
+    cases[c].postproc_vars=[]
+  
   cases[c].setup_case()
   #If first case, extract the surface and domain files for the region of interest
   if (c == 0):

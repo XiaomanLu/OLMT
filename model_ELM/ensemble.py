@@ -47,7 +47,8 @@ def create_ensemble_script(self, walltime=6):
         if s.split('=')[0].strip() == 'LD_LIBRARY_PATH':
             ldpath = s.split('=')[1].strip()
     softenv.close()
-    nnodes = int(np.ceil(self.nsamples/self.np_ensemble))
+    npernode=int(self.xmlquery('MAX_TASKS_PER_NODE'))
+    nnodes = int(np.ceil(self.np_ensemble/npernode))
     myfile = open('case.submit_ensemble','w')
     myfile.write('#!/bin/bash -e\n\n')
     myfile.write('#SBATCH -t '+str(walltime)+':00:00\n')

@@ -323,6 +323,10 @@ class ELMcase():
       elif (append != ''):
         os.system('./xmlchange --append '+variable+'='+append)
 
+  def xmlquery(self, variable):
+      result = subprocess.run(['./xmlquery','--value',variable], stdout=subprocess.PIPE)
+      return result.stdout.decode('utf-8')
+
   def setup_case(self):
     os.chdir(self.casedir)
 
@@ -422,8 +426,7 @@ class ELMcase():
           self.customize_namelist(variable='flanduse_timeseries',value="'"+pftdynfile+"'")
       self.customize_namelist(variable='check_finidat_fsurdat_consistency',value='.false.')
       self.customize_namelist(variable='check_finidat_year_consistency',value='.false.')
-      self.customize_namelist(variable='hist_mfilt', value='365')
-      self.customize_namelist(variable='hist_nhtfrq', value='-24')
+      self.set_histvars()
     else:
       self.set_histvars(spinup=True)
     self.customize_namelist(variable='paramfile',value="'"+self.rundir+"/clm_params.nc'")
