@@ -8,74 +8,73 @@ import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 from optparse import OptionParser
 
-parser = OptionParser()
-parser.add_option("--case", dest="casename", default="", \
-                  help="Name of case")
-parser.add_option("--nevals", dest="nevals", default="200000", \
-                  help="Number of model evaluations")
-parser.add_option("--burnsteps", dest="burnsteps", default="10", \
-                  help="Number burn steps")
-parser.add_option("--parm_list", dest="parm_list", default='parm_list', \
-                  help = 'File containing list of parameters to vary')
-parser.add_option("--parm_default", dest="parm_default", default='' \
-                  ,help = 'File containing list of parameters to vary')
-(options, args) = parser.parse_args()
-
-UQ_output = 'UQ_output/'+options.casename
-os.system('mkdir -p '+UQ_output+'/MCMC_output')
-
-def posterior(parms):
+def calc_posterior(self,parms,myvars):
     #Calculate the posterior (prior and log likelihood)
     line = 0
     #Uniform priors
     prior = 1.0
-    for j in range(0,model.nparms):
-        if (parms[j] < model.pmin[j] or parms[j] > model.pmax[j]):
+    for j in range(0,self.nparms_ensemble):
+        if (parms[j] < self.ensemble_pmin[j] or parms[j] > \
+                self.ensemble_pmax[j]):
             prior = 0.0
 
     post = prior
     if (prior > 0.0):
-        model.run(parms)
-        myoutput = model.output.flatten()
-        myobs    = model.obs.flatten()
-        myerr    = model.obs_err.flatten()
-        for v in range(0,len(myoutput)):
-            if (abs(myobs[v]) < 1e5 and myerr[v] > 0):
-                resid = (myoutput[v] - myobs[v])
-                ri = (resid/myerr[v])**2
+      output = self.run_surrogate(parms.reshape(1, -1), myvars)
+      for v in myvars:
+        # if (v == 'GPP'):
+        #     output[v]=output[v]*24*3600
+        myoutput = output[v].flatten()
+        myobs    = self.obs[v].flatten()
+        myerr    = self.obs_err[v].flatten()
+        if v == 'FPSN' or v == 'GPP':
+            myerr    = myobs*0+2.0
+        if v == 'EFLX_LH_TOT':
+            myerr = myobs*0+10.0
+        for n in range(0,len(myoutput)):
+            if ((myobs[n]) > -9000 and myerr[n] > 0 and \
+                    n % 12 > 0 and n %12 < 12):
+                resid = (myoutput[n] - myobs[n])
+                ri = (resid/myerr[n])**2
                 li = -1.0 * np.log(2.0*np.pi)/2.0 - \
-                     np.log(myerr[v]) - ri/2.0
+                     np.log(myerr[n]) - ri/2.0
                 post = post + li
+                #print(v,n,myobs[n],myoutput[n],myerr[n])
     else:
         post = -9999999
-    return(post)
+        output={}
+    #print(post)
+    return(post, output)
 
 #-------------------------------- MCMC ------------------------------------------------------
 
-def MCMC(parms, nevals, type='uniform', nburn=1000, burnsteps=10, default_output=[]):
+def MCMC(self, parms, myvars, nevals, type='uniform', nburn=1000, burnsteps=10, default_output=[]):
+    UQ_output='./UQ_output'
     #Metropolis-Hastings Markov Chain Monte Carlo with adaptive sampling
     post_best = -99999
     post_last = -99999
     accepted_step = 0
     accepted_tot  = 0
-    nparms     = model.nparms
+    nparms     = self.nparms_ensemble
     #parms      = np.zeros(nparms)
     parm_step  = np.zeros(nparms)
     chain      = np.zeros((nparms+1,nevals))
     chain_prop = np.zeros((nparms,nevals))
     chain_burn = np.zeros((nparms,nevals))
-    output     = np.zeros((model.nobs,nevals))
+    output     = {}
+    for v in myvars:
+      output[v]     = np.zeros((self.nobs[v],nevals))
     mycov      = np.zeros((nparms,nparms))
     for p in range(0,nparms):
         #Starting step size = 1% of prior range
         #parm_step[p] = 2.4**2/nparms * (model.pmax[p]-model.pmin[p])
-        parm_step[p] = 0.05 * (model.pmax[p]-model.pmin[p])
+        parm_step[p] = 0.05 * (self.ensemble_pmax[p]-self.ensemble_pmin[p])
         #parms[p] = np.random.uniform(parms[p]-parm_step[p],parms[p]+parm_step[p],1)
-        parms[p] = model.pdef[p]
+        #parms[p] = self.pdef[p]
         #parms_sens = np.copy(parms)
         #vary this parameter by one step
         #parms_sens[p] = parms_sens[p]+parm_step[p]
-        #post_sens = posterior(parms_sens)
+        #post_sens = calc_posterior(parms_sens)
         #use 1D sensitivities to decrease the step sizes accordingly
         #print p, np.absolute(post_def - post_sens)
         #if (np.absolute(post_def - post_sens) > 1.0):
@@ -125,24 +124,24 @@ def MCMC(parms, nevals, type='uniform', nburn=1000, burnsteps=10, default_output
     
     
         if (i == burnsteps*nburn):
-        #Parameter chain plots
+            #Parameter chain plots
             for p in range(0,nparms):
                 fig = plt.figure()
                 xchain = np.cumsum(np.ones(int(nburn*burnsteps)))
                 plt.plot(xchain, chain[p,0:int(nburn*burnsteps)])
                 plt.xlabel('Evaluations')
-                plt.ylabel(model.parm_names[p])
+                plt.ylabel(self.ensemble_parms[p])
                 if not os.path.exists(UQ_output+'/MCMC_output/plots/chains'):
                     os.makedirs(UQ_output+'/MCMC_output/plots/chains')
-                plt.savefig(UQ_output+'/MCMC_output/plots/chains/burnin_chain_'+model.parm_names[p]+'.pdf')
+                plt.savefig(UQ_output+'/MCMC_output/plots/chains/burnin_chain_'+self.ensemble_parms[p]+'.pdf')
                 plt.close(fig) 
     
         #get proposal step
         parms = np.random.multivariate_normal(parm_last, mycov)
    
         #------- run the model and calculate log likelihood -------------------
-        post = posterior(parms)
-        
+        thisoutput={}
+        post, thisoutput = calc_posterior(self,parms,myvars)
         #determine whether proposal step is accepted
         if ( (post - post_last < np.log(random.uniform(0,1)))):
             #if not accepted, go back to previous step
@@ -156,41 +155,46 @@ def MCMC(parms, nevals, type='uniform', nburn=1000, burnsteps=10, default_output
             chain_prop[0:nparms,accepted_tot] = parms-parm_last
             chain_burn[0:nparms,accepted_tot] = parms
             parm_last = parms
+            thisoutput_last = thisoutput.copy()
             #keep track of best solution so far
             if (post > post_best):
                 post_best = post
                 parms_best = parms
                 print(post_best)
-                output_best = model.output.flatten()
+                output_best = thisoutput
 
         #populate the chain matrix
         for j in range(0,nparms):
             chain[j][i] = parms[j]
         chain[nparms][i] = post_last
-        for j in range(0,model.nobs):
-            output[j,i] = model.output[0,j]
-
+        for v in myvars:
+            if (post > -9000000):
+              output[v][:,i] = thisoutput[v][:]
+            else:
+              output[v][:,i] = thisoutput_last[v][:]
         if (i % 1000 == 0):
             print(' -- '+str(i)+' --\n')
 
     print("Computing statistics")
     chain_afterburn = chain[0:nparms,int(nburn*burnsteps):]
     chain_sorted = chain_afterburn
-    output_sorted = output[0:model.nobs,int(nburn*burnsteps):]
-    output_sorted.sort()
+    output_sorted={}
+    for v in myvars:
+      output_sorted[v] = output[v][0:self.nobs[v],int(nburn*burnsteps):]
+      output_sorted[v].sort()
 
     np.savetxt(UQ_output+'/MCMC_output/MCMC_chain.txt', np.transpose(chain_afterburn))
     #Print out some statistics
-    parm_data=open(options.parm_list,'r')
-    parm_best=open(UQ_output+'/MCMC_output/parms_best.txt','w')
-    p=0
-    for s in parm_data:
-      row = s.split()
-      parm_best.write(row[0]+' '+row[1]+' '+str(parms_best[p])+'\n')
-      p=p+1
-    parm_data.close()
-    parm_best.close()
-    np.savetxt(UQ_output+'/MCMC_output/correlation_matrix.txt',np.corrcoef(chain_afterburn))
+    #parm_data=open(options.parm_list,'r')
+    #parm_best=open(UQ_output+'/MCMC_output/parms_best.txt','w')
+    #p=0
+    #for s in parm_data:
+    #  row = s.split()
+    #  parm_best.write(row[0]+' '+row[1]+' '+str(parms_best[p])+'\n')
+    #  p=p+1
+    #parm_data.close()
+    #parm_best.close()
+    #np.savetxt(UQ_output+'/MCMC_output/correlation_matrix.txt',np.corrcoef(chain_afterburn))
 
     #parameter correlation plots (threshold correlations)
     #corr_thresh = 0.8
@@ -201,13 +205,13 @@ def MCMC(parms, nevals, type='uniform', nburn=1000, burnsteps=10, default_output
     #      plt.hexbin(chain_afterburn[p1,:],chain_afterburn[p2,:])
     #      cbar = plt.colorbar()
     #      cbar.set_label('bin count')
-    #      plt.xlabel(model.parm_names[p1])
-    #      plt.ylabel(model.parm_names[p2])
+    #      plt.xlabel(self.ensemble_parms[p1])
+    #      plt.ylabel(self.ensemble_parms[p2])
     #
     #      plt.suptitle('r = '+str(parmcorr[p1,p2]))
     #      if not os.path.exists(UQ_output+'/MCMC_output/plots/corr'):
     #           os.makedirs(UQ_output+'/MCMC_output/plots/corr')
-    #      plt.savefig(UQ_output+'/MCMC_output/plots/corr/corr_'+model.parm_names[p1]+'_'+model.parm_names[p2]+'.pdf')
+    #      plt.savefig(UQ_output+'/MCMC_output/plots/corr/corr_'+self.ensemble_parms[p1]+'_'+model.parm_names[p2]+'.pdf')
     #      plt.close(fig)
     #Parameter chain plots
     for p in range(0,nparms):
@@ -215,76 +219,63 @@ def MCMC(parms, nevals, type='uniform', nburn=1000, burnsteps=10, default_output
         xchain = np.cumsum(np.ones(nevals-int(nburn*burnsteps)))
         plt.plot(xchain, chain_afterburn[p,:])
         plt.xlabel('Evaluations')
-        plt.ylabel(model.parm_names[p])
+        plt.ylabel(self.ensemble_parms[p])
         if not os.path.exists(UQ_output+'/MCMC_output/plots/chains'):
             os.makedirs(UQ_output+'/MCMC_output/plots/chains')
-        plt.savefig(UQ_output+'/MCMC_output/plots/chains/chain_'+model.parm_names[p]+'.pdf')
+        plt.savefig(UQ_output+'/MCMC_output/plots/chains/chain_'+self.ensemble_parms[p]+'.pdf')
         plt.close(fig)
 
     chain_sorted.sort()
     parm95=open(UQ_output+'/MCMC_output/parms_95pctconf.txt','w')
     for p in range(0,nparms):
-        parm95.write(str(model.parm_names[p])+' '+ \
+        parm95.write(str(self.ensemble_parms[p])+' '+ \
         str(chain_sorted[p,int(0.025*(nevals-nburn*burnsteps))])+' '+ \
         str(chain_sorted[p,int(0.975*(nevals-nburn*burnsteps))])+'\n')
     parm95.close()
     print("Ratio of accepted steps to total steps:")
     print(float(accepted_tot)/nevals)
     out95=open(UQ_output+'/MCMC_output/outputs_95pctconf.txt','w')
-    for p in range(0,model.nobs):
-        out95.write(str(output_sorted[p,int(0.025*(nevals-nburn*burnsteps))])+' '+ \
-        str(output_sorted[p,int(0.975*(nevals-nburn*burnsteps))])+'\n')
+    for v in myvars:
+      for p in range(0,self.nobs[v]):
+        out95.write(v+' '+str(output_sorted[v][p,int(0.025*(nevals-nburn*burnsteps))])+' '+ \
+        str(output_sorted[v][p,int(0.975*(nevals-nburn*burnsteps))])+'\n')
     out95.close()
     #make parameter histogram plots
     for p in range(0,nparms):
         fig = plt.figure()
         n, bins, patches = plt.hist(chain_afterburn[p,:],25)
-        plt.xlabel(model.parm_names[p])
+        plt.xlabel(self.ensemble_parms[p])
         plt.ylabel('Probability Density')
         if not os.path.exists(UQ_output+'/MCMC_output/plots/pdfs'):
             os.makedirs(UQ_output+'/MCMC_output/plots/pdfs')
-        plt.savefig(UQ_output+'/MCMC_output/plots/pdfs/'+model.parm_names[p]+'.pdf')
+        plt.savefig(UQ_output+'/MCMC_output/plots/pdfs/'+self.ensemble_parms[p]+'.pdf')
         plt.close(fig)
 
     #make prediction plots
-    obs_set = list(set(model.obs_name))
-    for s in range(0,len(obs_set)):
-      thisob = [ix for ix, value in enumerate(model.obs_name) if value == obs_set[s]]
+    for v in myvars:
       fig = plt.figure()
       ax=fig.add_subplot(111)
-      x = np.cumsum(np.ones([len(thisob)],float))
-      ax.errorbar(x,model.obs[thisob], yerr=model.obs_err[thisob], label='Observations')
-      ax.plot(x,output_best[thisob],'r', label = 'Model best')
-      ax.plot(x,output_sorted[thisob,int(0.025*(nevals-nburn*burnsteps))], \
+      x = np.cumsum(np.ones([self.nobs[v]],float))
+      obs_plot = self.obs[v].copy()
+      obs_plot[obs_plot < -9000] = np.NaN
+      obs_err_plot = self.obs_err[v].copy()
+      obs_err_plot[obs_err_plot < -9000] = np.NaN
+      ax.errorbar(x,obs_plot, yerr=obs_err_plot, label='Observations')
+      ax.plot(x,output_best[v].flatten(),'r', label = 'Model best')
+      ax.plot(x,output_sorted[v][:,int(0.025*(nevals-nburn*burnsteps))].flatten(), \
                  'k--', label='Model 95% CI')
-      ax.plot(x,output_sorted[thisob,int(0.975*(nevals-nburn*burnsteps))],'k--')
-      if (options.parm_default != ''):
-        ax.plot(x,default_output[thisob], 'g', label='Default')
-        #plt.xlabel(model.xlabel)
-        #plt.ylabel(model.ylabel)
+      ax.plot(x,output_sorted[v][:,int(0.975*(nevals-nburn*burnsteps))].flatten(),'k--')
+      #if (options.parm_default != ''):
+      #  ax.plot(x,default_output[thisob], 'g', label='Default')
+      #  #plt.xlabel(model.xlabel)
+      #  #plt.ylabel(model.ylabel)
       box = ax.get_position()
       ax.set_position([box.x0,box.y0,box.width*0.8,box.height])
       ax.legend(loc='center left', bbox_to_anchor=(1,0.5), fontsize='small')
       if not os.path.exists(UQ_output+'/MCMC_output/plots/predictions'):
         os.makedirs(UQ_output+'/MCMC_output/plots/predictions')
-      plt.savefig(UQ_output+'/MCMC_output/plots/predictions/Predictions_'+obs_set[s]+'.pdf')
+      plt.savefig(UQ_output+'/MCMC_output/plots/predictions/Predictions_'+v+'.pdf')
       plt.close(fig)
     return parms_best
 
-
-#Create the model object
-model = models.MyModel(case=options.casename)
-if (options.parm_default != ''):
-  parms_default = np.loadtxt(options.parm_default)
-  model.run(parms_default)
-  default_output = model.output.flatten()
-  parms = MCMC(model.pdef, int(options.nevals), burnsteps=int(options.burnsteps), \
-                          nburn=int(options.nevals)/(2*int(options.burnsteps)), \
-                          default_output=default_output)
-else:
-  #run MCMC
-  parms = MCMC(model.pdef, int(options.nevals), burnsteps=int(options.burnsteps), \
-                          nburn=int(options.nevals)/(2*int(options.burnsteps)))
-
-plt.show()
 

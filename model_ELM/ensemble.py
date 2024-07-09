@@ -26,6 +26,13 @@ def read_parm_list(self, parm_list=''):
         sys.exit(1)
     self.nparms_ensemble = len(self.ensemble_parms)
 
+#def get_default_parms(self):
+#    parm_file = Dataset(self.parm_file,'r')
+#    parms_def=[]
+#    for p in self.ensemble_parms:
+#        parms_def.append(parm_file[p][
+    
+
 #Create the samples file
 def create_samples(self,sampletype='monte_carlo',nsamples=100,parm_list=''):
     self.nsamples=nsamples
@@ -40,23 +47,24 @@ def create_samples(self,sampletype='monte_carlo',nsamples=100,parm_list=''):
 def create_ensemble_script(self, walltime=6):
     #Create the PBS script we will submit to run the ensemble
     os.chdir(self.casedir)
-    self.project='CLI185'
     #Get the LD_LIBRARY_PATH from software environment
     softenv = open('software_environment.txt','r')
     for s in softenv:
         if s.split('=')[0].strip() == 'LD_LIBRARY_PATH':
             ldpath = s.split('=')[1].strip()
     softenv.close()
-    npernode=int(self.xmlquery('MAX_TASKS_PER_NODE'))
-    nnodes = int(np.ceil(self.np_ensemble/npernode))
+    self.npernode=int(self.xmlquery('MAX_TASKS_PER_NODE'))
+    nnodes = int(np.ceil(self.np_ensemble/self.npernode))
     myfile = open('case.submit_ensemble','w')
     myfile.write('#!/bin/bash -e\n\n')
+    if (self.queue == 'debug'):
+        walltime=2
     myfile.write('#SBATCH -t '+str(walltime)+':00:00\n')
     myfile.write('#SBATCH -J ens_'+self.casename+'\n')
-    myfile.write('#SBATCH --nodes='+str(nnodes)+'\n')  #FIX
+    myfile.write('#SBATCH --nodes='+str(nnodes)+'\n')  
     if (self.project != ''):
         myfile.write('#SBATCH -A '+self.project+'\n')
-    myfile.write('#SBATCH -p batch\n')
+    myfile.write('#SBATCH -p '+self.queue+'\n')
     myfile.write('cd '+self.caseroot+'/'+self.casename+'\n')
     myfile.write('export LD_LIBRARY_PATH='+ldpath+'\n\n')
     myfile.write('./preview_namelists\n\n')

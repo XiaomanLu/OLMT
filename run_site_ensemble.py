@@ -3,36 +3,34 @@ import os
 import numpy as np
 
 #Define directories
-caseroot='/gpfs/wolf2/cades/cli185/scratch/zdr/e3sm_cases'
-runroot='/gpfs/wolf2/cades/cli185/scratch/zdr/e3sm_run'
-inputdata='/gpfs/wolf2/cades/cli185/proj-shared/zdr/inputdata'
+caseroot='/lcrc/group/e3sm/ac.ricciuto/e3sm_cases'
+runroot='/lcrc/group/e3sm/ac.ricciuto/e3sm_run'            #Leave blank to use machine default 
+inputdata=''          #Leave blank to use machine default (DIN_LOC_ROOT)
 modelroot=os.environ['HOME']+'/models/E3SM'
 #Use an existing executable, or set exeroot='' to do build 
-exeroot='/gpfs/wolf2/cades/cli185/scratch/zdr/e3sm_run/20240611_US-UMB_ICB1850CNRDCTCBC_ad_spinup/bld/'
-#exeroot=''
-#exeroot='/gpfs/wolf2/cades/cli185/scratch/zdr/e3sm_run/20240614_US-MOz_I1850CNRDCTCBC_ad_spinup/bld' #DATM
+exeroot='/lcrc/group/e3sm/ac.ricciuto/e3sm_run/20240705_US-MOz_ICB1850CNRDCTCBC_ad_spinup/bld/'
 
 site='US-MOz'      #site name
 mettype='site'     #met data type
-machine  = 'cades-baseline'
+machine  = 'chrysalis'
 
 runtype = 'BGC'
 if (runtype == 'BGC'):
   compsets = ['ICB1850CNRDCTCBC','ICB1850CNPRDCTCBC','ICB20TRCNPRDCTCBC']
   suffix   = ['_ad_spinup','','']      #Identifer suffix
-  nyears   = [50,50,170]               #number of years to run each case
+  nyears   = [200,200,170]               #number of years to run each case
   depends  = [-1,0,1]                  #Case dependency (-1 = no dependency)
 elif (runtype == 'SP'):
   compsets = ['ICBELMBC']
   suffix = ['']
-  nyears = [30]
+  nyears = [32]
   depends = [-1]
-  startyear = 1985
+  startyear = 1988
 
 #ensemble information
-parm_list='parm_list_test'       #parameter list file 
-np_ensemble = 128  #number of ensemble numbers to run in parallel
-nsamples= 200
+parm_list='parm_list_test_bgc'       #parameter list file 
+np_ensemble = 512  #number of ensemble numbers to run in parallel
+nsamples= 1000
 ensemble_file = '' #File containing samples (if blank, OLMT will generate one)
 
 #namelist options
@@ -41,10 +39,11 @@ namelist_options = []
 #namelist_options.append("add_co2 = 150")
 
 #Output variables to postprocess ensemble
-postproc_vars=['FPSN','EFLX_LH_TOT']
-postproc_startyear = 2000
-postproc_endyear   = 2002
+postproc_vars=['GPP','EFLX_LH_TOT']
+postproc_startyear = 2007
+postproc_endyear   = 2011
 postproc_freq      = 'monthly'   #Can be daily, monthly, annual
+calibrate          = True        #get observations and fit using surrogate model
 
 #------------------------------------------------------------------------------------------------
 cases = {}
@@ -71,12 +70,17 @@ for c in range(0,ncases):
           finidat_year = 1850+cases[depends[c]].run_n
       cases[c].set_finidat_file(finidat_case=cases[depends[c]].casename, \
               finidat_year=finidat_year)
-  #Set up the case
+
+  #Set postprocessing variables
   if (ncases == 1 or '20TR' in compsets[c] or 'trans' in compsets[c]):
     cases[c].postproc_vars = postproc_vars
     cases[c].postproc_startyear = postproc_startyear
     cases[c].postproc_endyear = postproc_endyear
     cases[c].postproc_freq = postproc_freq
+    #get the fluxnet observations
+    for v in postproc_vars:
+      cases[c].get_fluxnet_obs(site=site,tstep=postproc_freq,ystart=postproc_startyear, \
+          yend=postproc_endyear,fluxnet_var=v)
   else:
     cases[c].postproc_vars=[]
   

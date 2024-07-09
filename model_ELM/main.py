@@ -6,80 +6,93 @@ from datetime import datetime
 from .makepointdata import makepointdata
 from .set_histvars import *
 from .ensemble import *
-
+from .get_fluxnet_obs import *
+from .surrogate_NN import *
+from .run_GSA import *
+from .MCMC import *
 
 class ELMcase():
   def __init__(self,caseid='',compset='ICBELMBC',suffix='',site='',sitegroup='AmeriFlux', \
             res='',tstep=1,np=1,nyears=1,startyear=-1, machine='', \
             exeroot='', modelroot='', runroot='',caseroot='',inputdata='', \
             region_name='', lat_bounds=[-90,90],lon_bounds=[-180,180], \
-            namelist_options=[]):
+            namelist_options=[],casename=''):
 
-      self.model_name='elm'
-      self.modelroot=modelroot
-      self.inputdata_path = inputdata
-      self.runroot=runroot
-      self.caseroot=caseroot
-      self.exeroot=exeroot
-      self.OLMTdir = os.getcwd()
-      #Set default resolution (site or regional)
-      self.site=site
-      if (res == ''):
+      if (casename != ''):
+        #get case information from pre-existing pkl file:
+        print('Loading '+casename)
+        #Load case object
+        case_file=open('pklfiles/'+casename+'.pkl','rb')
+        myinstance=pickle.load(case_file)
+        for k in myinstance.__dict__.keys():
+          setattr(self, k, getattr(myinstance, k))
+      else:
+        self.model_name='elm'
+        self.modelroot=modelroot
+        self.inputdata_path = inputdata
+        self.runroot=runroot
+        self.caseroot=caseroot
+        self.exeroot=exeroot
+        self.OLMTdir = os.getcwd()
+        #Set default resolution (site or regional)
+        self.site=site
+        if (res == ''):
           if (site == ''):
               self.res='r05_r05'
               #Defined rectangular region
           else:
               self.res='ELM_USRDAT'
-      else:
+        else:
           self.res=res
-      self.region = 'region'
-      if (region_name != ''):
+        self.region = 'region'
+        if (region_name != ''):
           self.region = region_name
-      self.lat_bounds=lat_bounds
-      self.lon_bounds=lon_bounds
-      self.sitegroup=sitegroup
-      #Set the default case id prefix to the current date
-      if (caseid == ''):
-        current_date = datetime.now()
-        # Format the date as YYYYMMDD
-        self.caseid = current_date.strftime('%Y%m%d')
-      else:
-        self.caseid = caseid
-      self.get_machine(machine=machine)
-      self.compiler=''
-      self.pio_version=2
-      self.project=''
-      self.compset=compset
-      self.case_suffix=suffix   #used for ad_spinup and trans
-      #Custom surface/domain info
-      self.surffile = ''
-      self.pftdynfile = ''
-      self.nopftdyn=False
-      self.domainfile = ''
-      self.run_n = nyears
-      if (startyear == -1):
+        self.lat_bounds=lat_bounds
+        self.lon_bounds=lon_bounds
+        self.sitegroup=sitegroup
+        #Set the default case id prefix to the current date
+        if (caseid == ''):
+          current_date = datetime.now()
+          # Format the date as YYYYMMDD
+          self.caseid = current_date.strftime('%Y%m%d')
+        else:
+          self.caseid = caseid
+        self.get_machine(machine=machine)
+        self.compiler=''
+        self.pio_version=2
+        self.project=''
+        self.compset=compset
+        self.case_suffix=suffix   #used for ad_spinup and trans
+        #Custom surface/domain info
+        self.surffile = ''
+        self.pftdynfile = ''
+        self.nopftdyn=False
+        self.domainfile = ''
+        self.run_n = nyears
+        if (startyear == -1):
           if '1850' in self.compset:
               self.startyear=1
           elif '20TR' in self.compset or 'trans' in suffix:
               self.startyear=1850
           else:
               self.startyear=2000
-      else:
+        else:
            self.startyear=startyear
-      #Number of processors
-      self.np = np
-      #Timestep in hours
-      self.tstep = tstep
-      self.has_finidat = False
-      #Set default CO2 and aerosol files (bypass mode)
-      self.co2_file = inputdata+'/atm/datm7/CO2/fco2_datm_rcp4.5_1765-2500_c130312.nc'
-      self.cppdefs=''
-      self.srcmods=''
-      self.output={}
-      self.postproc_vars=[]
-      self.postproc_startyear=-1
-      self.postproc_endyear=9999
-      self.namelist_options=namelist_options
+        #Number of processors
+        self.np = np
+        #Timestep in hours
+        self.tstep = tstep
+        self.has_finidat = False
+        self.cppdefs=''
+        self.srcmods=''
+        self.output={}
+        self.obs={}
+        self.obs_err={}
+        self.surrogate={}
+        self.postproc_vars=[]
+        self.postproc_startyear=-1
+        self.postproc_endyear=9999
+        self.namelist_options=namelist_options
 
   def setup_ensemble(self, sampletype='monte_carlo',parm_list='', ensemble_file='', \
           np_ensemble=64, nsamples=100):
@@ -92,6 +105,9 @@ class ELMcase():
       self.nsamples = np.shape(self.samples)[1]
     self.np_ensemble=np_ensemble
     create_ensemble_script(self)
+    #Variables for surrogate model
+    self.pscaler={}
+    self.yscaler={}
 
   def get_machine(self,machine=''):
     if (machine == ''):
@@ -103,14 +119,20 @@ class ELMcase():
     self.noslurm=False
     if ('linux' in self.machine or 'ubuntu' in self.machine):
         self.noslurm=True
+    self.queue='batch'
+    if ('baseline' in self.machine):
+        self.project='CLI185'
+    elif ('chrysalis' in self.machine):
+        self.project='e3sm'
+        self.queue='debug'
 
   def get_model_directories(self):
     if (not os.path.exists(self.modelroot)):
       print('Error:  Model root '+self.modelroot+' does not exist.')
       sys.exit(1)
-    if (not os.path.exists(self.inputdata_path)):
-      print('Error:  Input data directory '+self.inputdata_path+' does not exist.')
-      sys.exit(1)
+    #if (not os.path.exists(self.inputdata_path)):
+    #  print('Error:  Input data directory '+self.inputdata_path+' does not exist.')
+    #  sys.exit(1)
     if (not os.path.exists(self.runroot)):
       print('Error: Run root '+self.runroot+' does not exist.')
       sys.exit(1)
@@ -120,7 +142,8 @@ class ELMcase():
     #if (not os.path.exists(self.exeroot)):
     #  print('No exeroot specified.  Setting to: '+self.runroot+'
     print('Model root directory: '+self.modelroot)
-    print('Input data directory: '+self.inputdata_path)
+    if (self.inputdata_path != ''):
+      print('Input data directory: '+self.inputdata_path)
     print('Run root directory:   '+self.runroot)
     print('Case root directory:  '+self.caseroot)
 
@@ -214,14 +237,15 @@ class ELMcase():
       self.has_finidat=True
 
 #-----------------------------------------------------------------------------------------
-  def create_case(self, machine=''):
-    #construct default casename
-    if (self.site == ''):
+  def create_case(self, machine='',casename=''):
+    if (casename == ''):
+      #construct default casename
+      if (self.site == ''):
         self.casename = self.caseid+'_'+self.region+'_'+self.compset+self.case_suffix
-    else:
+      else:
         self.casename = self.caseid+'_'+self.site+"_"+self.compset+self.case_suffix
-    if self.site == '':
-        self.caseid+'_'+self.res+"_"+self.compset+self.case_suffix
+    else:
+        self.casename = casename
     self.casedir = os.path.abspath(self.caseroot+'/'+self.casename)
     if (os.path.exists(self.casedir)):
       print('Warning:  Case directory exists')
@@ -244,7 +268,7 @@ class ELMcase():
     if (self.compiler != ''):
       cmd = cmd+' --compiler '+self.compiler
     #ADD MPILIB OPTION HERE
-    cmd = cmd+' --mpilib mpi-serial' #openmpi'  
+    #cmd = cmd+' --mpilib mpi-serial' #openmpi'  
     cmd = cmd+' > create_newcase.log'
     os.chdir(self.modelroot+'/cime/scripts')
     result = os.system(cmd)
@@ -254,6 +278,11 @@ class ELMcase():
     else:
       print('Error:  runcase.py Failed to create case.  See create_newcase.log for details')
       sys.exit(1)
+    os.chdir(self.casedir)
+    if (self.inputdata_path == ''):
+      self.inputdata_path=self.xmlquery('DIN_LOC_ROOT')
+      print('Input directory not specified.')
+      print('Setting to machine default: '+self.inputdata_path)
     self.rundir = self.runroot+'/'+self.casename+'/run'
     self.dobuild = False
     if (self.exeroot == ''):
@@ -329,7 +358,6 @@ class ELMcase():
 
   def setup_case(self):
     os.chdir(self.casedir)
-
     #env_build
     self.xmlchange('SAVE_TIMING',value='FALSE')
     self.xmlchange('EXEROOT',value=self.exeroot)
@@ -443,7 +471,7 @@ class ELMcase():
         #if using coupler bypass, need to add the following
         self.customize_namelist(variable='metdata_type',value="'"+self.forcing+"'")
         self.customize_namelist(variable='metdata_bypass',value="'"+self.metdir+"'")
-        self.customize_namelist(variable='co2_file', value="'"+self.co2_file+"'")
+        self.customize_namelist(variable='co2_file', value="'"+self.inputdata_path+"/atm/datm7/CO2/fco2_datm_rcp4.5_1765-2500_c130312.nc'")
         self.customize_namelist(variable='aero_file', value="'"+self.inputdata_path+"/atm/cam/chem/" \
                 +"trop_mozart_aero/aero/aerosoldep_rcp4.5_monthly_1849-2104_1.9x2.5_c100402.nc'")
     #add user namelist options
@@ -602,7 +630,7 @@ class ELMcase():
           myoutput = open('./user_datm.streams.txt.co2tseries.20tr','w')
           for s in myinput:
               if ('.nc' in s):
-                  myoutput.write('      '+self.co2_file+'\n')
+                  myoutput.write('      '+self.inputdata_path+"/atm/datm7/CO2/fco2_datm_rcp4.5_1765-2500_c130312.nc\n")
               else:
                   myoutput.write(s)
           myinput.close()
@@ -686,10 +714,15 @@ def _add_methods_from_module(module):
                 print(f"Error adding method {name}: {e}")
 
 # Import modules and add their functions as methods to CLMcase
-from . import ensemble, makepointdata, netcdf4_functions, set_histvars, postprocess
+from . import ensemble, makepointdata, netcdf4_functions, set_histvars, postprocess, get_fluxnet_obs, \
+        surrogate_NN, run_GSA, MCMC
 
 _add_methods_from_module(ensemble)
 _add_methods_from_module(makepointdata)
 _add_methods_from_module(netcdf4_functions)
 _add_methods_from_module(set_histvars)
 _add_methods_from_module(postprocess)
+_add_methods_from_module(get_fluxnet_obs)
+_add_methods_from_module(surrogate_NN)
+_add_methods_from_module(run_GSA)
+_add_methods_from_module(MCMC)
