@@ -41,7 +41,8 @@ def create_samples(self,sampletype='monte_carlo',nsamples=100,parm_list=''):
         for j in range(0,self.nparms_ensemble):
             self.samples[j,i] = self.ensemble_pmin[j]+(self.ensemble_pmax[j]- \
                     self.ensemble_pmin[j])*np.random.rand(1)
-    self.ensemble_file = 'mcsamples_'+self.caseid+'_'+str(self.nsamples)+'.txt'
+    self.ensemble_file = 'parm_samples/mcsamples_'+self.caseid+'_'+str(self.nsamples)+'.txt'
+    os.system('mkdir -p parm_samples')
     np.savetxt(self.ensemble_file,np.transpose(self.samples))
 
 def create_ensemble_script(self, walltime=6):

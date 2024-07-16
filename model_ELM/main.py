@@ -57,15 +57,17 @@ class ELMcase():
           self.caseid = current_date.strftime('%Y%m%d')
         else:
           self.caseid = caseid
+        self.project=''
         self.get_machine(machine=machine)
         self.compiler=''
         self.pio_version=2
-        self.project=''
         self.compset=compset
         self.case_suffix=suffix   #used for ad_spinup and trans
         #Custom surface/domain info
         self.surffile = ''
         self.pftdynfile = ''
+        self.parm_file = ''
+        self.fates_paramfile = ''
         self.nopftdyn=False
         self.domainfile = ''
         self.run_n = nyears
@@ -154,6 +156,10 @@ class ELMcase():
           #Assume the user wants to use site data and set default path
           self.forcing='site'
           self.metdir = self.inputdata_path+'/atm/datm7/CLM1PT_data/1x1pt_'+self.site
+        elif (mettype == 'gswp3-daymet4'):
+          print('Setting met type to gswp3-daymet4')
+          self.forcing='gswp3-daymet4'
+          self.metdir='/gpfs/wolf2/cades/cli185/proj-shared/zdr/Daymet_GSWP3_4KM_TESSFA/netcdf/'
         elif (mettype != ''):
           #Met type specified but not metdir.  Get location from metinfo.txt
           self.forcing=mettype
@@ -199,13 +205,11 @@ class ELMcase():
             value = line.split('=')[1]
     return value[:-1]   #avoid new line character
 
-  def set_param_file(self,filename=''):
+  def set_param_file(self):
     #set the ELM parameter file
-    if (filename == ''):
+    if (self.parm_file == ''):
       #Get parameter filename from case directory
       self.parm_file = self.get_namelist_variable('paramfile')
-    else:
-        self.parm_file = filename
     #Copy the parameter file to the temp directory 
     os.system('cp '+self.parm_file+' '+self.OLMTdir+'/temp/clm_params.nc')
     #TODO - add metadata to the copied file about original filename
@@ -217,12 +221,10 @@ class ELMcase():
         self.CNPparm_file = filename
     os.system('cp '+self.CNPparm_file+' '+self.OLMTdir+'/temp/CNP_parameters.nc')
 
-  def set_fates_param_file(self,filename=''):
-    if (filename == ''):
-        self.fates_paramfile = self.get_namelist_variable(self,'fates_paramfile')
-    else:
-        self.fates_paramfile = filename
-    os.system('cp '+self.parm_file+' '+self.OLMTdir+'/temp/fates_paramfile.nc')
+  def set_fates_param_file(self):
+    if (self.fates_paramfile == ''):
+        self.fates_paramfile = self.get_namelist_variable('fates_paramfile')
+    os.system('cp '+self.fates_paramfile+' '+self.OLMTdir+'/temp/fates_paramfile.nc')
 
   def set_finidat_file(self, finidat_case='', finidat_year=0, finidat=''):
       if (finidat_case != ''):
@@ -268,13 +270,14 @@ class ELMcase():
     if (self.compiler != ''):
       cmd = cmd+' --compiler '+self.compiler
     #ADD MPILIB OPTION HERE
-    #cmd = cmd+' --mpilib mpi-serial' #openmpi'  
-    cmd = cmd+' > create_newcase.log'
+    if ('FATES' in self.compset):
+      cmd = cmd+' --mpilib mpi-serial'  
+    cmd = cmd+' > '+self.OLMTdir+'/create_newcase.log'
     os.chdir(self.modelroot+'/cime/scripts')
     result = os.system(cmd)
     if (os.path.isdir(self.casedir)):
       print(self.casename+' created.  See create_newcase.log for details')
-      os.system('mv create_newcase.log '+self.casedir)
+      os.system('mv '+self.OLMTdir+'/create_newcase.log '+self.casedir)
     else:
       print('Error:  runcase.py Failed to create case.  See create_newcase.log for details')
       sys.exit(1)
@@ -302,15 +305,12 @@ class ELMcase():
     if (pftdynfile == '' and makepftdyn and not (self.nopftdyn)):
       self.makepointdata(self.pftdyn_global)
     if (domainfile != ''):
-      self.domainfile=domainfile
       print('\n -----INFO: using user-provided DOMAIN')
       print('surface data file: '+ domainfile)
     if (surffile != ''):
-      self.surffile=surffile
       print('\n -----INFO: using user-provided SURFDATA')
       print('surface data file: '+ surffile)  
     if (pftdynfile != ''):
-      self.pftdynfile=pftdynfile
       print('\n -----INFO: using user-provided 20th landuse data file')
       print('20th landuse data file: '+pftdynfile+"'\n")
 
@@ -319,9 +319,17 @@ class ELMcase():
     sitedatadir = os.path.abspath(self.inputdata_path+'/lnd/clm2/PTCLM')
     os.chdir(sitedatadir)
     if (self.site != ''):
-      AFdatareader = csv.reader(open(self.sitegroup+'_sitedata.txt',"r"))
-      for row in AFdatareader:
-        if row[0] == self.site:
+      if (self.is_bypass):
+        #Get met data year range from all_hourly file
+        mydata = Dataset(self.metdir+'/all_hourly.nc','r')
+        self.met_startyear = mydata['start_year'][0]
+        self.met_endyear   = mydata['end_year'][0]
+        mydata.close()
+      else:
+        #TODO:  use file list for datm files to determine year range
+        AFdatareader = csv.reader(open(self.sitegroup+'_sitedata.txt',"r"))
+        for row in AFdatareader:
+          if row[0] == self.site:
             self.met_startyear = int(row[6])
             self.met_endyear   = int(row[7])
             self.met_alignyear = int(row[8])
@@ -356,7 +364,7 @@ class ELMcase():
       result = subprocess.run(['./xmlquery','--value',variable], stdout=subprocess.PIPE)
       return result.stdout.decode('utf-8')
 
-  def setup_case(self):
+  def setup_case(self, surffile='', domainfile='', pftdynfile=''):
     os.chdir(self.casedir)
     #env_build
     self.xmlchange('SAVE_TIMING',value='FALSE')
@@ -437,14 +445,10 @@ class ELMcase():
     if ('20TR' in self.casename or 'trans' in self.casename):
         self.pftdyn_global = self.get_namelist_variable('flanduse_timeseries')
     #Set custom surface data information
-    if (self.surffile == ''):
+    if (surffile==''):
         surffile = self.rundir+'/surfdata.nc'
-    else:
-        surffile = self.surffile
-    if (self.pftdynfile == ''):
+    if (pftdynfile==''):
        pftdynfile = self.rundir+'/surfdata.pftdyn.nc'
-    else:
-       pftdynfile = self.pftdynfile
     self.customize_namelist(variable='do_budgets',value='.false.')
     self.customize_namelist(variable='fsurdat',value="'"+surffile+"'")
     if ('20TR' in self.casename or 'trans' in self.casename):
@@ -460,7 +464,7 @@ class ELMcase():
     self.customize_namelist(variable='paramfile',value="'"+self.rundir+"/clm_params.nc'")
     self.customize_namelist(variable='fsoilordercon',value="'"+self.rundir+"/CNP_parameters.nc'")
     #Fates options - TODO add nutrient/parteh options
-    if (('ED' in self.compset or 'FATES' in self.compset) and self.fates_paramfile != ''):
+    if ('ED' in self.compset or 'FATES' in self.compset):
         self.set_fates_param_file()
         self.customize_namelist(variable='fates_paramfile',value="'"+self.fates_paramfile+"'")
         #if (self.fates_logging):
@@ -479,18 +483,18 @@ class ELMcase():
         for n in self.namelist_options:
             self.customize_namelist(variable=n.split('=')[0], value=n.split('=')[1])
     #set domain file information
-    if (self.domainfile == ''):
+    if (domainfile == ''):
       self.xmlchange('ATM_DOMAIN_PATH',value='"\${RUNDIR}"')
       self.xmlchange('LND_DOMAIN_PATH',value='"\${RUNDIR}"')
       self.xmlchange('ATM_DOMAIN_FILE',value='domain.nc')
       self.xmlchange('LND_DOMAIN_FILE',value='domain.nc')
     else:
-      domainpath = '/'.join(self.domainfile.split('/')[:-1])
-      domainfile = self.domainfile.split('/')[-1]
+      domainpath = '/'.join(domainfile.split('/')[:-1])
+      domainfilename = domainfile.split('/')[-1]
       self.xmlchange('ATM_DOMAIN_PATH',value=domainpath)
       self.xmlchange('LND_DOMAIN_PATH',value=domainpath)
-      self.xmlchange('ATM_DOMAIN_FILE',value=domainfile)
-      self.xmlchange('LND_DOMAIN_FILE',value=domainfile)
+      self.xmlchange('ATM_DOMAIN_FILE',value=domainfilename)
+      self.xmlchange('LND_DOMAIN_FILE',value=domainfilename)
 
     #global CPPDEF modifications
     if (self.is_bypass()):
@@ -516,7 +520,7 @@ class ELMcase():
       #use for HUM_HOL, MARSH, HARVMOD, other cppdefs
       for cppdef in self.cppdefs.split(','):
          print("Turning on "+cppdef+" modification\n")
-         self.xmlchange('ELM_CONFIG_OPTS',append=' -cppdefs -D'+cppdef)
+         self.xmlchange('ELM_CONFIG_OPTS',append='" -cppdefs -D'+cppdef+'"')
     if (self.srcmods != ''):
       if (os.path.exists(self.srcmods) == False):
         print('Invalid srcmods directory.  Exiting')
@@ -559,6 +563,7 @@ class ELMcase():
       if (not self.is_bypass()):
           self.modify_datm_streamfiles()
       #Copy customized parameter, surface and domain files to run directory
+      os.system('mkdir -p temp')
       os.system('cp '+self.OLMTdir+'/temp/*param*.nc '+self.rundir)
       if (self.domainfile == ''):
          os.system('cp '+self.OLMTdir+'/temp/domain.nc '+self.rundir)

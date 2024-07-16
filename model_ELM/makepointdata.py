@@ -645,7 +645,7 @@ def makepointdata(self, input_file):
             else:
                 pct_nat_veg[0][0] = 100.0
 
-            if ('US-SPR' in self.site and mysimyr !=2000):
+            if ('US-SPR' in self.site and self.mysimyr !=2000):
                 #SPRUCE P initial data
                 soil_order[0][0] = 3
                 labilep[0][0]    = 1.0

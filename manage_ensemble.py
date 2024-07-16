@@ -35,11 +35,17 @@ def get_nodelist():
             firstnode=n2.split('-')[0]
             lastnode=n2.split('-')[1].strip(']')
             for nn in range(int(firstnode),int(lastnode)+1):
-              nstr = str(10000+nn)
-              mynodes.append(node_prefix+nstr[1:])
+              if ('baseline' in mycase.machine):
+                nstr = str(nn)
+              else:
+                nstr = str(10000+nn)[1:]
+              mynodes.append(node_prefix+nstr)
           else:
-              nstr=str(10000+n2)
-              mynodes.append(node_prefix+nstr[1:])
+              if ('baseline' in mycase.machine):
+                nstr=str(n2)
+              else:
+                nstr=str(10000+n2)[1:]
+              mynodes.append(node_prefix+nstr)
     else:
         mynodes.append(n)
   return mynodes

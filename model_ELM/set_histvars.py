@@ -25,34 +25,65 @@ def set_histvars(self,spinup=-1,hist_mfilt=-9999,hist_nhtfrq=-9999):
       for v in var_list_spinup:
         vst=vst+"'"+v+"',"
       if (not 'ELMBC' in self.compset):
-        self.customize_namelist(variable='hist_empty_htapes',value='.true.')
-        self.customize_namelist(variable='hist_fincl1',value=vst[:-1])
-        self.customize_namelist(variable='hist_fincl2',value=vst[:-1])
-        self.customize_namelist(variable='hist_dov2xy',value='.true.,.false.')
-        self.customize_namelist(variable='hist_mfilt',value='1,1')
-        self.customize_namelist(variable='hist_nhtfrq',value=str(self.nyears_spinup*-8760)+','+str(self.nyears_spinup*-8760))
+        if ('FATES' in self.compset):
+          #All variables, annual output for FATES
+          self.customize_namelist(variable='hist_mfilt',value='1')
+          self.customize_namelist(variable='hist_nhtfrq',value='-8760')
+        else:
+          self.customize_namelist(variable='hist_empty_htapes',value='.true.')
+          self.customize_namelist(variable='hist_fincl1',value=vst[:-1])
+          self.customize_namelist(variable='hist_fincl2',value=vst[:-1])
+          self.customize_namelist(variable='hist_dov2xy',value='.true.,.false.')
+          self.customize_namelist(variable='hist_mfilt',value='1,1')
+          self.customize_namelist(variable='hist_nhtfrq',value=str(self.nyears_spinup*-8760)+','+str(self.nyears_spinup*-8760))
       else:
         if (not self.postproc_vars):
           self.customize_namelist(variable='hist_mfilt',value='365')
           self.customize_namelist(variable='hist_nhtfrq',value='-24')
         else:
-          vst_pp=''  
+          vst_pp=''
+          vst_pp_pft=''
           for v in self.postproc_vars:
-              vst_pp=vst_pp+"'"+v+"',"
+              if ('_pft' in v):
+                  #PFT specific outputs (put in h2 file)
+                  vst_pp_pft=vst_pp_pft+"'"+v.split('_')[0]+"',"
+              else:
+                  vst_pp=vst_pp+"'"+v+"',"
           #Write daily for requested postprocessed variables
-          self.customize_namelist(variable='hist_mfilt',value='1,365')
-          self.customize_namelist(variable='hist_nhtfrq',value='-8760,-24')
+          if (vst_pp_pft != ''):
+              self.customize_namelist(variable='hist_mfilt',value='1,365,365')
+              self.customize_namelist(variable='hist_nhtfrq',value='-8760,-24,-24')
+              self.customize_namelist(variable='hist_dov2xy',value='.true.,.true.,.false.')
+              self.customize_namelist(variable='hist_fincl3',value=vst_pp_pft[:-1])
+          else:
+              self.customize_namelist(variable='hist_mfilt',value='1,365')
+              self.customize_namelist(variable='hist_nhtfrq',value='-8760,-24')
           self.customize_namelist(variable='hist_fincl2',value=vst_pp[:-1])
    else:
       #Transient simulation
       if (self.postproc_vars == []):
-        self.customize_namelist(variable='hist_mfilt',value='365')
-        self.customize_namelist(variable='hist_nhtfrq',value='-24')
+        #Default to daily output for all variables if not postproc vars
+        if ('US-SPR' in self.site):
+            #For default SPRUCE run, set history variables
+        else:
+            self.customize_namelist(variable='hist_mfilt',value='365')
+            self.customize_namelist(variable='hist_nhtfrq',value='-24')
       else:
+        #Write annual for all vars, requested postproc vars daily
         vst_pp=''
+        vst_pp_pft=''
         for v in self.postproc_vars:
-          vst_pp=vst_pp+"'"+v+"',"
-        #Write daily for requested postprocessed variables
-        self.customize_namelist(variable='hist_mfilt',value='1,365')
-        self.customize_namelist(variable='hist_nhtfrq',value='-8760,-24')
-        self.customize_namelist(variable='hist_fincl2',value=vst_pp[:-1])  
+            if ('_pft' in v):
+                #PFT specific outputs (put in h2 file)
+                vst_pp_pft=vst_pp_pft+"'"+v.split('_')[0]+"',"
+            else:
+                vst_pp=vst_pp+"'"+v+"',"
+        if (vst_pp_pft != ''):
+            self.customize_namelist(variable='hist_mfilt',value='1,365,365')
+            self.customize_namelist(variable='hist_nhtfrq',value='-8760,-24,-24')
+            self.customize_namelist(variable='hist_dov2xy',value='.true.,.true.,.false.')
+            self.customize_namelist(variable='hist_fincl3',value=vst_pp_pft[:-1])
+        else:
+            self.customize_namelist(variable='hist_mfilt',value='1,365')
+            self.customize_namelist(variable='hist_nhtfrq',value='-8760,-24')
+        self.customize_namelist(variable='hist_fincl2',value=vst_pp[:-1])
