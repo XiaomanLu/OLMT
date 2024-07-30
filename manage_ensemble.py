@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import sys,os, time
 import numpy as np
-import netcdf4_functions as nffun
 import subprocess
 import pickle
 import model_ELM
@@ -65,17 +64,45 @@ def get_node_submit(pactive,process_nodes,mynodes):
 def active_processes(processes):
     """Returns the number of processes that are still running."""
     pactive=[]
+    n=0
     for process in processes:
         if process.poll() is None:  # None means the process is still running
             pactive.append(1)
         else:
             pactive.append(0)
+            #Post-process ensemble member if it hasn't yet been done
+            if (mycase.postprocessed[n] == 0):
+                ierr = postprocess_ensemble(n)
+                mycase.postprocessed[n] = 1
+        n=n+1
     return pactive
+
+def postprocess_ensemble(n):
+  #Postprocess
+  if (mycase.postproc_vars != []):
+      for v in mycase.postproc_vars:
+        hnum=1
+        mypfts=[0]
+        if ('_pft' in v):
+            #PFT level outputs requested
+            hnum=2
+            mypfts=mycase.postproc_pfts
+        for p in mypfts:
+          if (mycase.postproc_freq == 'daily'):  #default
+            mycase.postprocess(v, ens_num=n+1,startyear=mycase.postproc_startyear, \
+                  endyear=mycase.postproc_endyear,index=p,hnum=hnum)
+          elif (mycase.postproc_freq == 'monthly'):  #monthly
+            mycase.postprocess(v, ens_num=n+1,startyear=mycase.postproc_startyear, \
+                  endyear=mycase.postproc_endyear,index=p,hnum=hnum, dailytomonthly=True)
+          elif (mycase.postproc_freq == 'annual'):  #annual
+            mycase.postprocess(v, ens_num=n+1,startyear=mycase.postproc_startyear, \
+                  endyear=mycase.postproc_endyear,index=p,hnum=hnum, annualmean=True)
+  return 0
 
 workdir = os.getcwd()
 
-
 processes=[]
+mycase.postprocessed=np.zeros([mycase.nsamples],int)
 n_job = 1
 if (mycase.noslurm == False):
     process_nodes = []
@@ -107,22 +134,16 @@ while (n_job <= mycase.nsamples):
 for process in processes:
     process.wait()
 
-#Postprocess
-if (mycase.postproc_vars != []):
-  for n in range(0,mycase.nsamples):
-    for v in mycase.postproc_vars:
-        if (mycase.postproc_freq == 'daily'):  #default
-          mycase.postprocess(v, ens_num=n+1,startyear=mycase.postproc_startyear,endyear=mycase.postproc_endyear, \
-                hnum=1)
-        elif (mycase.postproc_freq == 'monthly'):  #monthly
-          mycase.postprocess(v, ens_num=n+1,startyear=mycase.postproc_startyear,endyear=mycase.postproc_endyear, \
-                hnum=1, dailytomonthly=True) 
-        elif (mycase.postproc_freq == 'annual'):  #annual
-          mycase.postprocess(v, ens_num=n+1,startyear=mycase.postproc_startyear,endyear=mycase.postproc_endyear, \
-                hnum=1, annualmean=True)
+mycase.create_pkl()
+
+#Train surrogate models
+mycase.train_surrogate(mycase.postproc_vars)
+
+#run GSA
+mycase.GSA(mycase.postproc_vars)
+
 #Save postprocessed output
 mycase.create_pkl()
 
-#Create surrogate models
 
 

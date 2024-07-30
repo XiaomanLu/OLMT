@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import re, os, sys, csv, time, math
 import numpy
-import netcdf4_functions as nffun
 from netCDF4 import Dataset
 
 #parser = OptionParser()
@@ -26,7 +25,6 @@ def makepointdata(self, input_file):
  self.mysimyr =1850
  self.surfdata_grid = False
  self.marsh = False   #Fix later
- self.humhol = False
  self.mypft = -1
  self.lai = -999
 
@@ -198,8 +196,8 @@ def makepointdata(self, input_file):
     for i in range(1,192):
         latixy[i] = (latixy_centers[i-1]+latixy_centers[i])/2.0
  else:
-    longxy = nffun.getvar(surffile_orig, 'LONGXY')
-    latixy = nffun.getvar(surffile_orig, 'LATIXY')
+    longxy = self.getncvar(surffile_orig, 'LONGXY')
+    latixy = self.getncvar(surffile_orig, 'LATIXY')
 
  xgrid_min=[]
  xgrid_max=[]
@@ -311,7 +309,7 @@ def makepointdata(self, input_file):
   os.system('mkdir -p ./temp')
 
   # 'AREA' in surfdata.nc is in KM2, which later used for scaling a point
-  area_orig = nffun.getvar(self.surffile_orig, 'AREA')
+  area_orig = self.getncvar(self.surffile_orig, 'AREA')
 
   # in case NCO bin path not in $PATH
   os.environ["PATH"] += ':/usr/local/nco/bin'
@@ -353,13 +351,13 @@ def makepointdata(self, input_file):
 
 
     if (issite):
-        frac = nffun.getvar(domainfile_new, 'frac')
-        mask = nffun.getvar(domainfile_new, 'mask')
-        xc = nffun.getvar(domainfile_new, 'xc')
-        yc = nffun.getvar(domainfile_new, 'yc')
-        xv = nffun.getvar(domainfile_new, 'xv')
-        yv = nffun.getvar(domainfile_new, 'yv')
-        area = nffun.getvar(domainfile_new, 'area')
+        frac = self.getncvar(domainfile_new, 'frac')
+        mask = self.getncvar(domainfile_new, 'mask')
+        xc = self.getncvar(domainfile_new, 'xc')
+        yc = self.getncvar(domainfile_new, 'yc')
+        xv = self.getncvar(domainfile_new, 'xv')
+        yv = self.getncvar(domainfile_new, 'yv')
+        area = self.getncvar(domainfile_new, 'area')
         frac[0] = 1.0
         mask[0] = 1
         if (self.site != ''):
@@ -374,11 +372,11 @@ def makepointdata(self, input_file):
             yv[0][0][2] = lat[n]+resy/2
             yv[0][0][3] = lat[n]+resy/2
             area[0] = resx*resy*math.pi/180*math.pi/180
-            ierr = nffun.putvar(domainfile_new, 'xc', xc)
-            ierr = nffun.putvar(domainfile_new, 'yc', yc)
-            ierr = nffun.putvar(domainfile_new, 'xv', xv)
-            ierr = nffun.putvar(domainfile_new, 'yv', yv)
-            ierr = nffun.putvar(domainfile_new, 'area', area)
+            ierr = self.putncvar(domainfile_new, 'xc', xc)
+            ierr = self.putncvar(domainfile_new, 'yc', yc)
+            ierr = self.putncvar(domainfile_new, 'xv', xv)
+            ierr = self.putncvar(domainfile_new, 'yv', yv)
+            ierr = self.putncvar(domainfile_new, 'area', area)
         #elif (self.point_area_km2 != None or self.point_area_deg2 != None):
         #    xc[0] = lon[n]
         #    yc[0] = lat[n]
@@ -393,32 +391,32 @@ def makepointdata(self, input_file):
         #    area[0] = area[0]*xscalar*yscalar
         #    if(self.point_area_km2 != None):
         #        area[0] = float(self.point_area_km2)/re_km/re_km # there is about 0.3% error with calculation above
-        #    ierr = nffun.putvar(domainfile_new, 'xc', xc)
-        #    ierr = nffun.putvar(domainfile_new, 'yc', yc)
-        #    ierr = nffun.putvar(domainfile_new, 'xv', xv)
-        #    ierr = nffun.putvar(domainfile_new, 'yv', yv)
-        #    ierr = nffun.putvar(domainfile_new, 'area', area)
+        #    ierr = self.putncvar(domainfile_new, 'xc', xc)
+        #    ierr = self.putncvar(domainfile_new, 'yc', yc)
+        #    ierr = self.putncvar(domainfile_new, 'xv', xv)
+        #    ierr = self.putncvar(domainfile_new, 'yv', yv)
+        #    ierr = self.putncvar(domainfile_new, 'area', area)
         
-        ierr = nffun.putvar(domainfile_new, 'frac', frac)
-        ierr = nffun.putvar(domainfile_new, 'mask', mask)
+        ierr = self.putncvar(domainfile_new, 'frac', frac)
+        ierr = self.putncvar(domainfile_new, 'mask', mask)
         os.system('ncks -h -O --mk_rec_dim nj '+domainfile_new+' '+domainfile_new)
     #elif (self.mymask != ''):
     #   print('Applying mask from '+self.mymask)
     #   os.system('ncks -h -O -d lon,'+str(xgrid_min[n])+','+str(xgrid_max[n])+' -d lat,'+str(ygrid_min[n])+ \
     #          ','+str(ygrid_max[n])+' '+self.mymask+' mask_temp.nc')
-    #   newmask = nffun.getvar('mask_temp.nc', 'PNW_mask')
-    #   ierr = nffun.putvar(domainfile_new, 'mask', newmask)
+    #   newmask = self.getncvar('mask_temp.nc', 'PNW_mask')
+    #   ierr = self.putncvar(domainfile_new, 'mask', newmask)
     #   os.system('rm mask_temp.nc')
 
     domainfile_old = domainfile_new
   #if (self.use1kmsurf):
-  #      frac = nffun.getvar(domainfile_new, 'frac')
-  #      mask = nffun.getvar(domainfile_new, 'mask')
-  #      xc = nffun.getvar(domainfile_new, 'xc')
-  #      yc = nffun.getvar(domainfile_new, 'yc')
-  #      xv = nffun.getvar(domainfile_new, 'xv')
-  #      yv = nffun.getvar(domainfile_new, 'yv')
-  #      area = nffun.getvar(domainfile_new, 'area')
+  #      frac = self.getncvar(domainfile_new, 'frac')
+  #      mask = self.getncvar(domainfile_new, 'mask')
+  #      xc = self.getncvar(domainfile_new, 'xc')
+  #      yc = self.getncvar(domainfile_new, 'yc')
+  #      xv = self.getncvar(domainfile_new, 'xv')
+  #      yv = self.getncvar(domainfile_new, 'yv')
+  #      area = self.getncvar(domainfile_new, 'area')
   #      frac[0] = 1.0
   #      mask[0] = 1
   #      xc[0] = lon_bounds[0]
@@ -432,13 +430,13 @@ def makepointdata(self, input_file):
   #      yv[0][0][2] = lat_bounds[0]+resy/2
   #      yv[0][0][3] = lat_bounds[0]+resy/2
   #      #area[0] = resx*resy*math.pi/180*math.pi/180
-  #      ierr = nffun.putvar(domainfile_new, 'xc', xc)
-  #      ierr = nffun.putvar(domainfile_new, 'yc', yc)
-  #      ierr = nffun.putvar(domainfile_new, 'xv', xv)
-  #      ierr = nffun.putvar(domainfile_new, 'yv', yv)
-  #      ierr = nffun.putvar(domainfile_new, 'area', area)
-  #      ierr = nffun.putvar(domainfile_new, 'frac', frac)
-  #      ierr = nffun.putvar(domainfile_new, 'mask', mask)
+  #      ierr = self.putncvar(domainfile_new, 'xc', xc)
+  #      ierr = self.putncvar(domainfile_new, 'yc', yc)
+  #      ierr = self.putncvar(domainfile_new, 'xv', xv)
+  #      ierr = self.putncvar(domainfile_new, 'yv', yv)
+  #      ierr = self.putncvar(domainfile_new, 'area', area)
+  #      ierr = self.putncvar(domainfile_new, 'frac', frac)
+  #      ierr = self.putncvar(domainfile_new, 'mask', mask)
    
   domainfile_new = './temp/domain.nc'
   if (n_grids > 1):
@@ -500,18 +498,18 @@ def makepointdata(self, input_file):
           os.system('ncks -h -O --fix_rec_dmn time -d lsmlon,'+str(xgrid_min[n])+','+str(xgrid_max[n])+ \
              ' -d lsmlat,'+str(ygrid_min[n])+','+str(ygrid_max[n])+' '+surffile_orig+' '+surffile_new)
     if (issite):
-        landfrac_pft = nffun.getvar(surffile_new, 'LANDFRAC_PFT')
-        pftdata_mask = nffun.getvar(surffile_new, 'PFTDATA_MASK')
-        longxy       = nffun.getvar(surffile_new, 'LONGXY')
-        latixy       = nffun.getvar(surffile_new, 'LATIXY')
-        area         = nffun.getvar(surffile_new, 'AREA')
-        pct_wetland  = nffun.getvar(surffile_new, 'PCT_WETLAND')
-        pct_lake     = nffun.getvar(surffile_new, 'PCT_LAKE')
-        pct_glacier  = nffun.getvar(surffile_new, 'PCT_GLACIER')
-        pct_urban    = nffun.getvar(surffile_new, 'PCT_URBAN')
+        landfrac_pft = self.getncvar(surffile_new, 'LANDFRAC_PFT')
+        pftdata_mask = self.getncvar(surffile_new, 'PFTDATA_MASK')
+        longxy       = self.getncvar(surffile_new, 'LONGXY')
+        latixy       = self.getncvar(surffile_new, 'LATIXY')
+        area         = self.getncvar(surffile_new, 'AREA')
+        pct_wetland  = self.getncvar(surffile_new, 'PCT_WETLAND')
+        pct_lake     = self.getncvar(surffile_new, 'PCT_LAKE')
+        pct_glacier  = self.getncvar(surffile_new, 'PCT_GLACIER')
+        pct_urban    = self.getncvar(surffile_new, 'PCT_URBAN')
         if ('r05' in self.res):
-          pct_crop = nffun.getvar(surffile_new, 'PCT_CROP')
-          pct_cft  = nffun.getvar(surffile_new, 'PCT_CFT')
+          pct_crop = self.getncvar(surffile_new, 'PCT_CROP')
+          pct_cft  = self.getncvar(surffile_new, 'PCT_CFT')
         if ('CROP' in self.compset):
           #put fake P data in this datset
           vars_in = ['LABILE_P','APATITE_P','SECONDARY_P','OCCLUDED_P']
@@ -526,23 +524,23 @@ def makepointdata(self, input_file):
           tempvar = tempdata.createVariable('SOIL_ORDER', 'i4',('lsmlat','lsmlon',))
           tempdata.close()
         else:
-          soil_order   = nffun.getvar(surffile_new, 'SOIL_ORDER')
-          labilep      = nffun.getvar(surffile_new, 'LABILE_P')
-          primp        = nffun.getvar(surffile_new, 'APATITE_P')
-          secondp      = nffun.getvar(surffile_new, 'SECONDARY_P')
-          occlp        = nffun.getvar(surffile_new, 'OCCLUDED_P')
+          soil_order   = self.getncvar(surffile_new, 'SOIL_ORDER')
+          labilep      = self.getncvar(surffile_new, 'LABILE_P')
+          primp        = self.getncvar(surffile_new, 'APATITE_P')
+          secondp      = self.getncvar(surffile_new, 'SECONDARY_P')
+          occlp        = self.getncvar(surffile_new, 'OCCLUDED_P')
         #input from site-specific information
-        soil_color   = nffun.getvar(surffile_new, 'SOIL_COLOR')
-        pct_sand     = nffun.getvar(surffile_new, 'PCT_SAND')
-        pct_clay     = nffun.getvar(surffile_new, 'PCT_CLAY')
-        organic      = nffun.getvar(surffile_new, 'ORGANIC')
-        fmax         = nffun.getvar(surffile_new, 'FMAX')
-        pct_nat_veg  = nffun.getvar(surffile_new, 'PCT_NATVEG')
-        pct_pft      = nffun.getvar(surffile_new, 'PCT_NAT_PFT') 
-        monthly_lai  = nffun.getvar(surffile_new, 'MONTHLY_LAI')
-        monthly_sai  = nffun.getvar(surffile_new, 'MONTHLY_SAI')
-        monthly_height_top = nffun.getvar(surffile_new, 'MONTHLY_HEIGHT_TOP')
-        monthly_height_bot = nffun.getvar(surffile_new, 'MONTHLY_HEIGHT_BOT')
+        soil_color   = self.getncvar(surffile_new, 'SOIL_COLOR')
+        pct_sand     = self.getncvar(surffile_new, 'PCT_SAND')
+        pct_clay     = self.getncvar(surffile_new, 'PCT_CLAY')
+        organic      = self.getncvar(surffile_new, 'ORGANIC')
+        fmax         = self.getncvar(surffile_new, 'FMAX')
+        pct_nat_veg  = self.getncvar(surffile_new, 'PCT_NATVEG')
+        pct_pft      = self.getncvar(surffile_new, 'PCT_NAT_PFT') 
+        monthly_lai  = self.getncvar(surffile_new, 'MONTHLY_LAI')
+        monthly_sai  = self.getncvar(surffile_new, 'MONTHLY_SAI')
+        monthly_height_top = self.getncvar(surffile_new, 'MONTHLY_HEIGHT_TOP')
+        monthly_height_bot = self.getncvar(surffile_new, 'MONTHLY_HEIGHT_BOT')
 
         npft = 17
         npft_crop = 0
@@ -706,34 +704,34 @@ def makepointdata(self, input_file):
 
 
 
-        ierr = nffun.putvar(surffile_new, 'LANDFRAC_PFT', landfrac_pft)
-        ierr = nffun.putvar(surffile_new, 'PFTDATA_MASK', pftdata_mask)
-        ierr = nffun.putvar(surffile_new, 'LONGXY', longxy)
-        ierr = nffun.putvar(surffile_new, 'LATIXY', latixy)
-        ierr = nffun.putvar(surffile_new, 'AREA', area)
-        ierr = nffun.putvar(surffile_new, 'PCT_WETLAND', pct_wetland)
-        ierr = nffun.putvar(surffile_new, 'PCT_LAKE', pct_lake)
-        ierr = nffun.putvar(surffile_new, 'PCT_GLACIER',pct_glacier)
-        ierr = nffun.putvar(surffile_new, 'PCT_URBAN', pct_urban)
+        ierr = self.putncvar(surffile_new, 'LANDFRAC_PFT', landfrac_pft)
+        ierr = self.putncvar(surffile_new, 'PFTDATA_MASK', pftdata_mask)
+        ierr = self.putncvar(surffile_new, 'LONGXY', longxy)
+        ierr = self.putncvar(surffile_new, 'LATIXY', latixy)
+        ierr = self.putncvar(surffile_new, 'AREA', area)
+        ierr = self.putncvar(surffile_new, 'PCT_WETLAND', pct_wetland)
+        ierr = self.putncvar(surffile_new, 'PCT_LAKE', pct_lake)
+        ierr = self.putncvar(surffile_new, 'PCT_GLACIER',pct_glacier)
+        ierr = self.putncvar(surffile_new, 'PCT_URBAN', pct_urban)
         if ('CROP' in self.compset or 'r05' in self.res):
-            ierr = nffun.putvar(surffile_new, 'PCT_CROP', pct_crop)
-            ierr = nffun.putvar(surffile_new, 'PCT_CFT', pct_cft)
+            ierr = self.putncvar(surffile_new, 'PCT_CROP', pct_crop)
+            ierr = self.putncvar(surffile_new, 'PCT_CFT', pct_cft)
        
-        ierr = nffun.putvar(surffile_new, 'SOIL_ORDER', soil_order)
-        ierr = nffun.putvar(surffile_new, 'LABILE_P', labilep)
-        ierr = nffun.putvar(surffile_new, 'APATITE_P', primp)
-        ierr = nffun.putvar(surffile_new, 'SECONDARY_P', secondp)
-        ierr = nffun.putvar(surffile_new, 'OCCLUDED_P', occlp)
-        ierr = nffun.putvar(surffile_new, 'SOIL_COLOR', soil_color)
-        ierr = nffun.putvar(surffile_new, 'FMAX', fmax)
-        ierr = nffun.putvar(surffile_new, 'ORGANIC', organic)
-        ierr = nffun.putvar(surffile_new, 'PCT_SAND', pct_sand)
-        ierr = nffun.putvar(surffile_new, 'PCT_CLAY', pct_clay)
-        ierr = nffun.putvar(surffile_new, 'PCT_NATVEG', pct_nat_veg)
-        ierr = nffun.putvar(surffile_new, 'PCT_NAT_PFT', pct_pft)
-        ierr = nffun.putvar(surffile_new, 'MONTHLY_HEIGHT_TOP', monthly_height_top)
-        ierr = nffun.putvar(surffile_new, 'MONTHLY_HEIGHT_BOT', monthly_height_bot)
-        ierr = nffun.putvar(surffile_new, 'MONTHLY_LAI', monthly_lai)
+        ierr = self.putncvar(surffile_new, 'SOIL_ORDER', soil_order)
+        ierr = self.putncvar(surffile_new, 'LABILE_P', labilep)
+        ierr = self.putncvar(surffile_new, 'APATITE_P', primp)
+        ierr = self.putncvar(surffile_new, 'SECONDARY_P', secondp)
+        ierr = self.putncvar(surffile_new, 'OCCLUDED_P', occlp)
+        ierr = self.putncvar(surffile_new, 'SOIL_COLOR', soil_color)
+        ierr = self.putncvar(surffile_new, 'FMAX', fmax)
+        ierr = self.putncvar(surffile_new, 'ORGANIC', organic)
+        ierr = self.putncvar(surffile_new, 'PCT_SAND', pct_sand)
+        ierr = self.putncvar(surffile_new, 'PCT_CLAY', pct_clay)
+        ierr = self.putncvar(surffile_new, 'PCT_NATVEG', pct_nat_veg)
+        ierr = self.putncvar(surffile_new, 'PCT_NAT_PFT', pct_pft)
+        ierr = self.putncvar(surffile_new, 'MONTHLY_HEIGHT_TOP', monthly_height_top)
+        ierr = self.putncvar(surffile_new, 'MONTHLY_HEIGHT_BOT', monthly_height_bot)
+        ierr = self.putncvar(surffile_new, 'MONTHLY_LAI', monthly_lai)
     
     else: # not if(issite)
         if (self.use1kmsurf):
@@ -782,10 +780,10 @@ def makepointdata(self, input_file):
             mydata_new.close()
             mydata_1km.close()
         if (int(self.mypft) >= 0):
-          pct_pft      = nffun.getvar(surffile_new, 'PCT_NAT_PFT')
+          pct_pft      = self.getncvar(surffile_new, 'PCT_NAT_PFT')
           pct_pft[:,:,:] = 0.0
           pct_pft[int(self.mypft),:,:] = 100.0
-          ierr = nffun.putvar(surffile_new, 'PCT_NAT_PFT', pct_pft)
+          ierr = self.putncvar(surffile_new, 'PCT_NAT_PFT', pct_pft)
 
     surffile_old = surffile_new
 
@@ -849,26 +847,26 @@ def makepointdata(self, input_file):
           os.system('ncks -h -O --fix_rec_dmn time -d lsmlon,'+str(xgrid_min[n])+','+str(xgrid_max[n])+ \
                   ' -d lsmlat,'+str(ygrid_min[n])+','+str(ygrid_max[n])+' '+pftdyn_orig+' '+pftdyn_new)
     if (issite):
-        landfrac_pft = nffun.getvar(pftdyn_new, 'LANDFRAC_PFT')
-        pftdata_mask = nffun.getvar(pftdyn_new, 'PFTDATA_MASK')
-        longxy       = nffun.getvar(pftdyn_new, 'LONGXY')
-        latixy       = nffun.getvar(pftdyn_new, 'LATIXY')
-        area         = nffun.getvar(pftdyn_new, 'AREA')
-        pct_pft      = nffun.getvar(pftdyn_new, 'PCT_NAT_PFT')
+        landfrac_pft = self.getncvar(pftdyn_new, 'LANDFRAC_PFT')
+        pftdata_mask = self.getncvar(pftdyn_new, 'PFTDATA_MASK')
+        longxy       = self.getncvar(pftdyn_new, 'LONGXY')
+        latixy       = self.getncvar(pftdyn_new, 'LATIXY')
+        area         = self.getncvar(pftdyn_new, 'AREA')
+        pct_pft      = self.getncvar(pftdyn_new, 'PCT_NAT_PFT')
         #Assume surface data already created and in temp directory
-        pct_lake_1850    = nffun.getvar('./temp/surfdata.nc', 'PCT_LAKE')
-        pct_glacier_1850 = nffun.getvar('./temp/surfdata.nc', 'PCT_GLACIER')
-        pct_wetland_1850 = nffun.getvar('./temp/surfdata.nc', 'PCT_WETLAND')
-        pct_urban_1850   = nffun.getvar('./temp/surfdata.nc', 'PCT_URBAN')
-        pct_pft_1850     = nffun.getvar('./temp/surfdata.nc', 'PCT_NAT_PFT')
+        pct_lake_1850    = self.getncvar('./temp/surfdata.nc', 'PCT_LAKE')
+        pct_glacier_1850 = self.getncvar('./temp/surfdata.nc', 'PCT_GLACIER')
+        pct_wetland_1850 = self.getncvar('./temp/surfdata.nc', 'PCT_WETLAND')
+        pct_urban_1850   = self.getncvar('./temp/surfdata.nc', 'PCT_URBAN')
+        pct_pft_1850     = self.getncvar('./temp/surfdata.nc', 'PCT_NAT_PFT')
         if ('r05' in self.res):
-            pct_crop_1850    = nffun.getvar('./temp.surfdata.nc', 'PCT_CROP')
-        grazing      = nffun.getvar(pftdyn_new, 'GRAZING')
-        harvest_sh1  = nffun.getvar(pftdyn_new, 'HARVEST_SH1')
-        harvest_sh2  = nffun.getvar(pftdyn_new, 'HARVEST_SH2')
-        harvest_sh3  = nffun.getvar(pftdyn_new, 'HARVEST_SH3')
-        harvest_vh1  = nffun.getvar(pftdyn_new, 'HARVEST_VH1')
-        harvest_vh2  = nffun.getvar(pftdyn_new, 'HARVEST_VH2')
+            pct_crop_1850    = self.getncvar('./temp.surfdata.nc', 'PCT_CROP')
+        grazing      = self.getncvar(pftdyn_new, 'GRAZING')
+        harvest_sh1  = self.getncvar(pftdyn_new, 'HARVEST_SH1')
+        harvest_sh2  = self.getncvar(pftdyn_new, 'HARVEST_SH2')
+        harvest_sh3  = self.getncvar(pftdyn_new, 'HARVEST_SH3')
+        harvest_vh1  = self.getncvar(pftdyn_new, 'HARVEST_VH1')
+        harvest_vh2  = self.getncvar(pftdyn_new, 'HARVEST_VH2')
         npft = 17
         npft_crop = 0
         if ('CROP' in self.compset):
@@ -1016,18 +1014,18 @@ def makepointdata(self, input_file):
                         pct_pft[t][p][0][0] = pct_pft[t][p][0][0]/sumpft*(100.0) #-nonpft)
             
 
-        ierr = nffun.putvar(pftdyn_new, 'LANDFRAC_PFT', landfrac_pft)
-        ierr = nffun.putvar(pftdyn_new, 'PFTDATA_MASK', pftdata_mask)
-        ierr = nffun.putvar(pftdyn_new, 'LONGXY', longxy)
-        ierr = nffun.putvar(pftdyn_new, 'LATIXY', latixy)
-        ierr = nffun.putvar(pftdyn_new, 'AREA', area)
-        ierr = nffun.putvar(pftdyn_new, 'PCT_NAT_PFT', pct_pft)
-        ierr = nffun.putvar(pftdyn_new, 'GRAZING', grazing)
-        ierr = nffun.putvar(pftdyn_new, 'HARVEST_SH1', harvest_sh1)
-        ierr = nffun.putvar(pftdyn_new, 'HARVEST_SH2', harvest_sh2)
-        ierr = nffun.putvar(pftdyn_new, 'HARVEST_SH3', harvest_sh3)
-        ierr = nffun.putvar(pftdyn_new, 'HARVEST_VH1', harvest_vh1)
-        ierr = nffun.putvar(pftdyn_new, 'HARVEST_VH2', harvest_vh2)
+        ierr = self.putncvar(pftdyn_new, 'LANDFRAC_PFT', landfrac_pft)
+        ierr = self.putncvar(pftdyn_new, 'PFTDATA_MASK', pftdata_mask)
+        ierr = self.putncvar(pftdyn_new, 'LONGXY', longxy)
+        ierr = self.putncvar(pftdyn_new, 'LATIXY', latixy)
+        ierr = self.putncvar(pftdyn_new, 'AREA', area)
+        ierr = self.putncvar(pftdyn_new, 'PCT_NAT_PFT', pct_pft)
+        ierr = self.putncvar(pftdyn_new, 'GRAZING', grazing)
+        ierr = self.putncvar(pftdyn_new, 'HARVEST_SH1', harvest_sh1)
+        ierr = self.putncvar(pftdyn_new, 'HARVEST_SH2', harvest_sh2)
+        ierr = self.putncvar(pftdyn_new, 'HARVEST_SH3', harvest_sh3)
+        ierr = self.putncvar(pftdyn_new, 'HARVEST_VH1', harvest_vh1)
+        ierr = self.putncvar(pftdyn_new, 'HARVEST_VH2', harvest_vh2)
     pftdyn_old = pftdyn_new
 
   pftdyn_new = './temp/surfdata.pftdyn.nc'

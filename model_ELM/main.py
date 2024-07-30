@@ -1,8 +1,6 @@
-import netcdf4_functions as nffun
 import socket, os, sys, csv, time, math, numpy
-import re, subprocess
+import glob, re, subprocess
 import pickle
-from datetime import datetime
 from .makepointdata import makepointdata
 from .set_histvars import *
 from .ensemble import *
@@ -10,6 +8,8 @@ from .get_fluxnet_obs import *
 from .surrogate_NN import *
 from .run_GSA import *
 from .MCMC import *
+from .netcdf4_functions import *
+from datetime import datetime
 
 class ELMcase():
   def __init__(self,caseid='',compset='ICBELMBC',suffix='',site='',sitegroup='AmeriFlux', \
@@ -33,7 +33,8 @@ class ELMcase():
         self.runroot=runroot
         self.caseroot=caseroot
         self.exeroot=exeroot
-        self.OLMTdir = os.getcwd()
+        self.OLMTdir = os.getcwd()+'/..'
+        print('OLMT dir: '+self.OLMTdir)
         #Set default resolution (site or regional)
         self.site=site
         if (res == ''):
@@ -66,7 +67,7 @@ class ELMcase():
         #Custom surface/domain info
         self.surffile = ''
         self.pftdynfile = ''
-        self.parm_file = ''
+        self.paramfile = ''
         self.fates_paramfile = ''
         self.nopftdyn=False
         self.domainfile = ''
@@ -86,6 +87,7 @@ class ELMcase():
         self.tstep = tstep
         self.has_finidat = False
         self.cppdefs=''
+        self.humhol=False
         self.srcmods=''
         self.output={}
         self.obs={}
@@ -159,7 +161,11 @@ class ELMcase():
         elif (mettype == 'gswp3-daymet4'):
           print('Setting met type to gswp3-daymet4')
           self.forcing='gswp3-daymet4'
-          self.metdir='/gpfs/wolf2/cades/cli185/proj-shared/zdr/Daymet_GSWP3_4KM_TESSFA/netcdf/'
+          self.metdir='/gpfs/wolf2/cades/cli185/proj-shared/zdr/Daymet_GSWP3_4KM_TESSFA'
+        elif (mettype == 'era5-daymet4'):
+          print('Setting met type to era5-daymet4')
+          self.forcing = 'era5-daymet4'
+          self.metdir = '/gpfs/wolf2/cades/cli185/proj-shared/zdr/Daymet_ERA5_TESSFA2'
         elif (mettype != ''):
           #Met type specified but not metdir.  Get location from metinfo.txt
           self.forcing=mettype
@@ -167,16 +173,14 @@ class ELMcase():
           for s in metinfo:
               if s.split(':')[0] == mettype:
                   self.metdir = self.inputdata_path+'/'+s.split(':')[1].strip()
-                  if (self.is_bypass()):
-                      self.metdir = self.metdir+'/cpl_bypass_full'
           metinfo.close()
         else:
           #No site, mettype or metdir specified.  Default to GSWP3
           print('No site, mettype or metdir specified.  Defaulting to GSWP3')
           self.forcing='gswp3'
           self.metdir = self.inputdata_path+'/atm/datm7/atm_forcing.datm7.GSWP3.0.5d.v2.c180716'
-          if (self.is_bypass()):
-              self.metdir = self.metdir+'/cpl_bypass_full'
+        if (self.is_bypass() and not 'site' in self.forcing):
+            self.metdir = self.metdir+'/cpl_bypass_full'
     else:
         #Met data directory provided.  Get met type.
         if (self.site != '' and mettype == ''):
@@ -207,11 +211,12 @@ class ELMcase():
 
   def set_param_file(self):
     #set the ELM parameter file
-    if (self.parm_file == ''):
+    if (self.paramfile == ''):
       #Get parameter filename from case directory
-      self.parm_file = self.get_namelist_variable('paramfile')
+      self.paramfile = self.get_namelist_variable('paramfile')
+      print('Parameter file: '+self.paramfile)
     #Copy the parameter file to the temp directory 
-    os.system('cp '+self.parm_file+' '+self.OLMTdir+'/temp/clm_params.nc')
+    os.system('cp '+self.paramfile+' '+self.OLMTdir+'/temp/clm_params.nc')
     #TODO - add metadata to the copied file about original filename
 
   def set_CNP_param_file(self,filename=''):
@@ -224,6 +229,7 @@ class ELMcase():
   def set_fates_param_file(self):
     if (self.fates_paramfile == ''):
         self.fates_paramfile = self.get_namelist_variable('fates_paramfile')
+        print('FATES parameter file : '+self.fates_paramfile)
     os.system('cp '+self.fates_paramfile+' '+self.OLMTdir+'/temp/fates_paramfile.nc')
 
   def set_finidat_file(self, finidat_case='', finidat_year=0, finidat=''):
@@ -243,9 +249,11 @@ class ELMcase():
     if (casename == ''):
       #construct default casename
       if (self.site == ''):
-        self.casename = self.caseid+'_'+self.region+'_'+self.compset+self.case_suffix
+        self.casename = self.caseid+'_'+self.region+'_'+self.compset
       else:
-        self.casename = self.caseid+'_'+self.site+"_"+self.compset+self.case_suffix
+        self.casename = self.caseid+'_'+self.site+"_"+self.compset
+      if (self.case_suffix != ''):
+          self.casename = self.casename + '_'+self.case_suffix
     else:
         self.casename = casename
     self.casedir = os.path.abspath(self.caseroot+'/'+self.casename)
@@ -264,7 +272,8 @@ class ELMcase():
     #IF the resolution is user defined (site), we will first create a case with 
     #original resolution to get them correct domain, surface and land use files.
     cmd = './create_newcase --case '+self.casedir+' --mach '+self.machine+' --compset '+ \
-           self.compset+' --res '+self.res+' --walltime '+timestr+' --handle-preexisting-dirs u'
+           self.compset+' --res '+self.res+' --walltime '+timestr+' --handle-preexisting-dirs u' \
+           ' > '+self.OLMTdir+'/create_newcase.log'
     if (self.project != ''):
       cmd = cmd+' --project '+self.project
     if (self.compiler != ''):
@@ -318,40 +327,66 @@ class ELMcase():
     #get site year information
     sitedatadir = os.path.abspath(self.inputdata_path+'/lnd/clm2/PTCLM')
     os.chdir(sitedatadir)
-    if (self.site != ''):
-      if (self.is_bypass):
+    if (self.forcing == 'site'):
+      if (self.is_bypass()):
         #Get met data year range from all_hourly file
         mydata = Dataset(self.metdir+'/all_hourly.nc','r')
         self.met_startyear = mydata['start_year'][0]
         self.met_endyear   = mydata['end_year'][0]
         mydata.close()
       else:
-        #TODO:  use file list for datm files to determine year range
-        AFdatareader = csv.reader(open(self.sitegroup+'_sitedata.txt',"r"))
-        for row in AFdatareader:
-          if row[0] == self.site:
-            self.met_startyear = int(row[6])
-            self.met_endyear   = int(row[7])
-            self.met_alignyear = int(row[8])
-            if len(row) == 10:
-                self.timezone = int(row[9])
-      self.nyears_spinup=self.met_endyear-self.met_startyear+1
-    if (self.forcing != 'site'):
+        pattern = os.path.join(self.metdir,'????-??.nc')
+        matching_files = glob.glob(pattern)
+        years=[]
+        for f in matching_files:
+            years.append(int(f.split('/')[-1].split('-')[0]))
+        self.met_startyear = min(years)
+        self.met_endyear   = max(years)
+      if (self.met_endyear-self.met_startyear+1 > 20):
+          self.met_endyear_spinup = self.met_startyear+20-1
+      else:
+          self.met_endyear_spinup = self.met_endyear
+    else:
         #Assume reanalysis
         self.met_startyear = 1901
+        self.met_endyear   = 2014
         if ('daymet' in self.forcing):
             self.met_startyear = 1980
-            self.met_endyear = 1999
         if ('Qian' in self.forcing):
             self.met_startyear = 1948
-        endyear = self.met_startyear+20-1
-        if ('20TR' in self.casename or 'trans' in self.casename):
-            self.met_endyear = 2014
-        self.nyears_spinup=20
-    #force run length to be multiple of spinup
-    if (not '20TR' in self.compset and not 'trans' in self.casename):
+        if ('era5' in self.forcing):
+            self.met_endyear=2023
+        #Assume we want a 20-year spinup cycle
+        self.met_endyear_spinup = self.met_startyear+20-1
+    self.nyears_spinup=self.met_endyear_spinup-self.met_startyear+1
+    if (self.run_n == -1):
+        #Set the transient run length such that last year is last year of met data
+        self.run_n = self.met_endyear-self.startyear+1
+    #force run length to be multiple of spinup met data years
+    if (not 'ICBELM' in self.compset and not '20TR' in self.compset and not 'trans' in self.casename):
       while (self.run_n % self.nyears_spinup != 0):
-        self.run_n = self.run_n+1
+          self.run_n = self.run_n+1
+    if (not self.is_bypass() and not ('phase2' in self.casename)):
+        #Figure out the align year
+        testyear = self.met_startyear
+        while (testyear > self.startyear):
+            testyear = testyear - self.nyears_spinup
+        self.met_alignyear = (self.startyear-testyear)+self.met_startyear
+        if (self.met_endyear != self.met_endyear_spinup):
+            self.met_endyear = self.met_endyear_spinup
+        if ('20TR' in self.compset):
+            self.run_n = self.met_endyear_spinup-self.startyear+1
+    elif (not self.is_bypass() and ('phase2') in self.casename):
+        self.met_alignyear = self.startyear
+        self.met_startyear = self.startyear
+    print('Starting met data year: ', self.met_startyear)
+    if ('20TR' in self.compset or 'trans' in self.casename):
+        print('Ending   met data year: ', self.met_endyear)
+    else:
+        print('Ending   met data year: ', self.met_endyear_spinup)
+    if (not self.is_bypass()):
+        print('Met data align year: ', self.met_alignyear)
+    print('Run length (years): ',self.run_n)
 
   def xmlchange(self, variable, value='', append=''):
       os.chdir(self.casedir)
@@ -364,7 +399,7 @@ class ELMcase():
       result = subprocess.run(['./xmlquery','--value',variable], stdout=subprocess.PIPE)
       return result.stdout.decode('utf-8')
 
-  def setup_case(self, surffile='', domainfile='', pftdynfile=''):
+  def setup_case(self):
     os.chdir(self.casedir)
     #env_build
     self.xmlchange('SAVE_TIMING',value='FALSE')
@@ -390,11 +425,15 @@ class ELMcase():
     #datm options
     if (not self.is_bypass()):
       if (not 'site' in self.forcing):
-        self.xmlchange('DATM_MODE',value='CLMCRUNCEP') 
+        self.datm_mode = 'CLMGSWP3v1'   #CLMCRUNCEP
+        self.xmlchange('DATM_MODE',value=self.datm_mode)
       else:
         self.xmlchange('DATM_MODE',value='CLM1PT') 
-        self.xmlchange('DATM_CLMNCEP_YR_START',value=str(self.met_startyear))
+      self.xmlchange('DATM_CLMNCEP_YR_START',value=str(self.met_startyear))
+      if ('phase2' in self.casename):
         self.xmlchange('DATM_CLMNCEP_YR_END',value=str(self.met_endyear))
+      else:
+        self.xmlchange('DATM_CLMNCEP_YR_END',value=str(self.met_endyear_spinup))
     #Change simulation timestep
     if (float(self.tstep) != 0.5):
       self.xmlchange('ATM_NCPL',value=str(int(24/float(self.tstep))))
@@ -437,6 +476,8 @@ class ELMcase():
         sys.exit(1)
     #get the default parameter files for the case
     self.set_param_file()
+    if ('FATES' in self.compset or 'ED' in self.compset):
+        self.set_fates_param_file()
     self.set_CNP_param_file()
     #get the default surface and domain files (to pass to makepointdata)
     #Note:  This requires setting a supported resolution
@@ -445,6 +486,15 @@ class ELMcase():
     if ('20TR' in self.casename or 'trans' in self.casename):
         self.pftdyn_global = self.get_namelist_variable('flanduse_timeseries')
     #Set custom surface data information
+    surffile=''
+    domainfile=''
+    pftdynfile=''
+    if ('surffile' in self.case_options):
+        surffile = self.case_options['surffile']
+    if ('domainfile' in self.case_options):
+        domainfile = self.case_options['domainfile']
+    if ('pftdynfile' in self.case_options):
+        pftdynfile = self.case_options['pftdynfile']
     if (surffile==''):
         surffile = self.rundir+'/surfdata.nc'
     if (pftdynfile==''):
@@ -465,8 +515,9 @@ class ELMcase():
     self.customize_namelist(variable='fsoilordercon',value="'"+self.rundir+"/CNP_parameters.nc'")
     #Fates options - TODO add nutrient/parteh options
     if ('ED' in self.compset or 'FATES' in self.compset):
-        self.set_fates_param_file()
-        self.customize_namelist(variable='fates_paramfile',value="'"+self.fates_paramfile+"'")
+        if self.fates_nutrient:
+          self.customize_namelist(variable='fates_parteh_mode',value='2')
+        self.customize_namelist(variable='fates_paramfile',value="'"+self.rundir+"/fates_paramfile.nc'")
         #if (self.fates_logging):
         #    self.customize_namelist(variable='use_fates_logging',value='.true.')
     self.customize_namelist(variable='nyears_ad_carbon_only',value='25')
@@ -478,10 +529,11 @@ class ELMcase():
         self.customize_namelist(variable='co2_file', value="'"+self.inputdata_path+"/atm/datm7/CO2/fco2_datm_rcp4.5_1765-2500_c130312.nc'")
         self.customize_namelist(variable='aero_file', value="'"+self.inputdata_path+"/atm/cam/chem/" \
                 +"trop_mozart_aero/aero/aerosoldep_rcp4.5_monthly_1849-2104_1.9x2.5_c100402.nc'")
-    #add user namelist options
-    if (self.namelist_options):
-        for n in self.namelist_options:
-            self.customize_namelist(variable=n.split('=')[0], value=n.split('=')[1])
+    keys_exclude = ['surffile','domainfile','pftdynfile','paramfile','fates_paramfile']
+    #Custom namelist options
+    for key in self.case_options.keys():
+        if (not key in keys_exclude):
+            self.customize_namelist(variable=key,value=str(self.case_options[key]))
     #set domain file information
     if (domainfile == ''):
       self.xmlchange('ATM_DOMAIN_PATH',value='"\${RUNDIR}"')
@@ -497,6 +549,8 @@ class ELMcase():
       self.xmlchange('LND_DOMAIN_FILE',value=domainfilename)
 
     #global CPPDEF modifications
+    if (self.humhol):
+        self.cppdefs='HUM_HOL'
     if (self.is_bypass()):
       macrofiles=['./Macros.make','./Macros.cmake']
       for f in macrofiles:
@@ -591,12 +645,12 @@ class ELMcase():
               else:
                   mypresaero = '"datm.streams.txt.presaero.clim_2000 1 2000 2000"'
                   myco2=''
-              if (self.site == ''):
-                  myoutput.write(' streams = "datm.streams.txt.CLMCRUNCEP.Solar '+str(self.met_alignyear)+ \
+              if (not 'site' in self.forcing):
+                  myoutput.write(' streams = "datm.streams.txt.'+self.datm_mode+'.Solar '+str(self.met_alignyear)+ \
                                      ' '+str(self.met_startyear)+' '+str(self.met_endyear)+'  ", '+ \
-                                     '"datm.streams.txt.CLMCRUNCEP.Precip '+str(self.met_alignyear)+ \
+                                     '"datm.streams.txt.'+self.datm_mode+'.Precip '+str(self.met_alignyear)+ \
                                      ' '+str(self.met_startyear)+' '+str(self.met_endyear)+'  ", '+ \
-                                     '"datm.streams.txt.CLMCRUNCEP.TPQW '+str(self.met_alignyear)+ \
+                                     '"datm.streams.txt.'+self.datm_mode+'.TPQW '+str(self.met_alignyear)+ \
                                      ' '+str(self.met_startyear)+' '+str(self.met_endyear)+'  ", '+mypresaero+myco2+ \
                                      ', "datm.streams.txt.topo.observed 1 1 1"\n')
               else:
@@ -606,10 +660,10 @@ class ELMcase():
           elif ('streams' in s):
               continue  #do nothing
           elif ('taxmode' in s):
-              #if (options.cruncep or options.cruncepv8):
-              #    taxst = "taxmode = 'cycle', 'cycle', 'cycle', 'extend', 'extend'"
-              #else:
-              taxst = "taxmode = 'cycle', 'extend', 'extend'"
+              if (not 'site' in self.forcing):
+                taxst = "taxmode = 'cycle', 'cycle', 'cycle', 'extend', 'extend'"
+              else:
+                taxst = "taxmode = 'cycle', 'extend', 'extend'"
               if ('trans' in self.casename or '20TR' in self.compset):
                   taxst = taxst+", 'extend'"
               myoutput.write(taxst+'\n')
@@ -622,20 +676,23 @@ class ELMcase():
         if ('1850' in self.compset):
           myinput  = open('./Buildconf/datmconf/datm.streams.txt.presaero.clim_1850')
           myoutput = open('./user_datm.streams.txt.presaero.clim_1850','w')
-          for s in myinput:
-              if ('aerosoldep_monthly' in s):
-                  myoutput.write('            aerosoldep_monthly_1849-2006_1.9x2.5_c090803.nc\n')
-              else:
-                  myoutput.write(s)
-          myinput.close()
-          myoutput.close()
+        elif ('IELM' in self.compset):
+          myinput  = open('./Buildconf/datmconf/datm.streams.txt.presaero.clim_2000')
+          myoutput = open('./user_datm.streams.txt.presaero.clim_2000','w')
+        for s in myinput:
+            if ('aerosoldep_monthly' in s):
+                myoutput.write('            aerosoldep_monthly_1849-2006_1.9x2.5_c090803.nc\n')
+            else:
+                myoutput.write(s)
+        myinput.close()
+        myoutput.close()
       #Modify CO2 file
       if ('20TR' in self.compset):
           myinput  = open('./Buildconf/datmconf/datm.streams.txt.co2tseries.20tr')
           myoutput = open('./user_datm.streams.txt.co2tseries.20tr','w')
           for s in myinput:
               if ('.nc' in s):
-                  myoutput.write('      '+self.inputdata_path+"/atm/datm7/CO2/fco2_datm_rcp4.5_1765-2500_c130312.nc\n")
+                  myoutput.write("      fco2_datm_rcp4.5_1765-2500_c130312.nc\n")
               else:
                   myoutput.write(s)
           myinput.close()
@@ -651,7 +708,6 @@ class ELMcase():
                   temp  =s.replace('TEMPSTRING', '1x1pt'+'_'+self.site)
                   myoutput.write(temp)
               elif (('ED' in self.compset or 'FATES' in self.compset) and 'FLDS' in s):
-#              if (('ED' in compset or 'FATES' in compset) and 'FLDS' in s):
                   print('Not including FLDS in atm stream file')
               else:
                   myoutput.write(s)
@@ -731,3 +787,5 @@ _add_methods_from_module(get_fluxnet_obs)
 _add_methods_from_module(surrogate_NN)
 _add_methods_from_module(run_GSA)
 _add_methods_from_module(MCMC)
+
+

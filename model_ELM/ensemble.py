@@ -2,7 +2,7 @@
 
 import os, sys, csv, time, math
 import numpy as np
-import netcdf4_functions as nffun
+import datetime
 
 #Read the parameter list file
 def read_parm_list(self, parm_list=''):
@@ -69,6 +69,7 @@ def create_ensemble_script(self, walltime=6):
     myfile.write('cd '+self.caseroot+'/'+self.casename+'\n')
     myfile.write('export LD_LIBRARY_PATH='+ldpath+'\n\n')
     myfile.write('./preview_namelists\n\n')
+    myfile.write('ulimit -n '+str(self.nsamples*2)+'\n')
     myfile.write('cd '+self.OLMTdir+'\n')
     myfile.write('./manage_ensemble.py --case '+self.casename+'\n')
     myfile.close()  
@@ -81,7 +82,7 @@ def ensemble_copy(self, ens_num):
 
   # create ensemble directory from original case 
   orig_dir = str(os.path.abspath(self.runroot)+'/'+self.casename+'/run')
-  ens_dir  = os.path.abspath(self.runroot)+'/UQ/'+self.casename+'/g'+gst[1:]
+  ens_dir  = str(os.path.abspath(self.runroot)+'/UQ/'+self.casename+'/g'+gst[1:])
 		
   os.system('mkdir -p '+self.runroot+'/UQ/'+self.casename+'/g'+gst[1:]+'/timing/checkpoints')
   os.system('cp  '+orig_dir+'/*_in* '+ens_dir)
@@ -142,51 +143,22 @@ def ensemble_copy(self, ens_num):
                 os.system('mv '+surffile_new+'_tmp '+surffile_new)
                 myoutput.write(" fsurdat = '"+surffile_new+"'\n")
                 surffile = ens_dir+'/surfdata_'+gst[1:]+'.nc'
-            elif ('finidat = ' in s):
-                finidat_file_orig = ((s.split()[2]).strip("'"))
-                if (finidat_file_orig.strip() != ''):
-                   finidat_file_new  = ens_dir+'/'+(finidat_file_orig.split('/')[-1:])[0]
-                   if (finidat_file_orig[0:2] == './'):
-                      finidat_file_orig = orig_dir+'/'+finidat_file_orig[2:]
-                   #get finidat files from previous ensemble cases if available
-                   if (('1850' in self.casename or 'CROP' in self.casename) and not ('ad_spinup' in self.casename) and not \
-                          ('trans' in self.casename or '20TR' in self.casename)): 
-                      finidat_file_path = os.path.abspath(self.runroot)+'/UQ/'+self.casename.replace('CNP','CN')+'_ad_spinup/g'+gst[1:]
-                      if (os.path.exists(finidat_file_path)):
-                            finidat_file_orig = finidat_file_path+'/*.'+self.model_name+'.r.*.nc'
-                            os.system('python adjust_restart.py --rundir '+finidat_file_path+' --casename '+ \
-                                self.casename.replace('CNP','CN')+'_ad_spinup')
-                   if ('20TR' in self.casename):
-                      if ( not ('CO2' in self.casename)):
-                          finidat_file_path = os.path.abspath(self.runroot)+'/UQ/'+self.casename.replace('20TR','1850')+ \
-                                          '/g'+gst[1:]
-                          if (os.path.exists(finidat_file_path)):
-                              finidat_file_orig = finidat_file_path+'/*.'+self.model_name+'.r.*.nc'
-                              os.system('rm '+finidat_file_path+'/*ad_spinup*.'+self.model_name+'.r.*.nc')
-                      else: 
-                          finidat_file_path = os.path.abspath(self.runroot)+'/UQ/'+self.casename[:-5]+ \
-                                          '/g'+gst[1:]
-                          if (os.path.exists(finidat_file_path)):
-                              finidat_file_orig = finidat_file_path+'/*.'+self.model_name+'.r.*.nc'
-                              os.system('rm '+finidat_file_path+'/*1850*.'+self.model_name+'.r.*.nc')
-                   if ('trans' in self.casename):
-                      finidat_file_path = os.path.abspath(self.runroot)+'/UQ/'+self.casename.replace('_trans','')+ \
-                                       '/g'+gst[1:]
-                      if (os.path.exists(finidat_file_path)):
-                          finidat_file_orig = finidat_file_path+'/*.'+self.model_name+'.r.*.nc'
-                          os.system('rm '+finidat_file_path+'/*ad_spinup*.'+self.model_name+'.r.*.nc')
-                   os.system('cp '+finidat_file_orig+' '+finidat_file_new)
-                   myoutput.write(" finidat = '"+finidat_file_new+"'\n")
-                else:
-                   myoutput.write(s)
+            elif ('finidat = ' in s and self.has_finidat):
+                finidat_file_path = os.path.abspath(self.runroot)+'/UQ/'+self.dependcase+'/g'+gst[1:]
+                finidat_file_name = self.finidat.split('/')[:-1]
+                finidat_file_orig = self.finidat
+                finidat_file_new  = finidat_file_path+'/'+finidat_file_name 
+                if ('ad_spinup' in self.dependcase): 
+                        os.system('python adjust_restart.py --rundir '+finidat_file_path+' --casename '+ \
+                            self.dependcase)
+                os.system('cp '+finidat_file_orig+' '+finidat_file_new)
+                myoutput.write(" finidat = '"+finidat_file_new+"'\n")
             elif ('logfile =' in s):
-                os.system('date +%y%m%d-%H%M%S > mytime'+str(ens_num))
-                mytinput=open('./mytime'+str(ens_num),'r')
-                for st in mytinput:
-                    timestr = st.strip()
-                mytinput.close()
-                os.system('rm mytime'+str(ens_num))
-                myoutput.write(s.replace('`date +%y%m%d-%H%M%S`',timestr))
+                #Get the current date and time
+                now = datetime.datetime.now()
+                #Format the date and time in %y%m%d-%H%M%S format
+                date_string = now.strftime("%y%m%d-%H%M%S")
+                myoutput.write(s.replace('`date +%y%m%d-%H%M%S`',date_string))
             else:
                 myoutput.write(s.replace(orig_dir,ens_dir))
         myoutput.close()
@@ -209,14 +181,14 @@ def ensemble_copy(self, ens_num):
          scalevars = ['soil4c_vr','soil4n_vr','soil4p_vr']
       sumvars = ['totsomc','totsomp','totcolc','totcoln','totcolp']
       for v in scalevars:
-         myvar = nffun.getvar(finidat_file_new, v)
+         myvar = self.getncvar(finidat_file_new, v)
          myvar = parm_values[pnum] * myvar
-         ierr = nffun.putvar(finidat_file_new, v, myvar)
+         ierr = self.putncvar(finidat_file_new, v, myvar)
     elif (p == 'lai'):
       myfile = surffile
-      param = nffun.getvar(myfile, 'MONTHLY_LAI')
+      param = self.getncvar(myfile, 'MONTHLY_LAI')
       param[:,:,:,:] = parm_values[pnum]
-      ierr = nffun.putvar(myfile, 'MONTHLY_LAI', param)
+      ierr = self.putncvar(myfile, 'MONTHLY_LAI', param)
     elif (p != 'co2'):
       if (p in CNP_parms):
          myfile= CNPfile
@@ -224,7 +196,7 @@ def ensemble_copy(self, ens_num):
          myfile = fates_paramfile
       else:
          myfile = pftfile
-      param = nffun.getvar(myfile,p)
+      param = self.getncvar(myfile,p)
       if (('fates_prt' in p and 'stoich' in p) or ('fates_turnover' in p and 'retrans' in p)):
         #this is a 2D parameter.
          param[parm_indices[pnum] % 12 , parm_indices[pnum] / 12] = parm_values[pnum]
@@ -248,7 +220,7 @@ def ensemble_copy(self, ens_num):
       elif (p == 'dayl_scaling' or p == 'vcmaxse'):
         os.system('ncap2 -O -s "'+p+' = flnr" '+myfile+' '+myfile)
         print('Creting netcdf variable for '+p)
-        param = nffun.getvar(myfile,'flnr')
+        param = self.getncvar(myfile,'flnr')
         param[:] = parm_values[pnum]
       elif (p == 'psi50'):
         param[:,parm_indices[pnum]] = parm_values[pnum]
@@ -259,24 +231,24 @@ def ensemble_copy(self, ens_num):
            param[:] = parm_values[pnum]
          except:
            param = parm_values[pnum]
-      ierr = nffun.putvar(myfile, p, param)
+      ierr = self.putncvar(myfile, p, param, addvar=True)
       #if ('fr_flig' in p):
-      #   param=nffun.getvar(myfile, 'fr_fcel')
+      #   param=self.getncvar(myfile, 'fr_fcel')
       #   param[parm_indices[pnum]]=1.0-parm_values[pnum]-parm_values[pnum-1]
-      #   ierr = nffun.putvar(myfile, 'fr_fcel', param)
+      #   ierr = self.putncvar(myfile, 'fr_fcel', param)
     pnum = pnum+1
 
   #ensure FATES seed allocation paramters sum to one
   #if (fates_seed_zeroed[0]):
-  #  param = nffun.getvar(myfile,'fates_seed_alloc')
-  #  param2 = nffun.getvar(myfile,'fates_seed_alloc_mature')
+  #  param = self.getncvar(myfile,'fates_seed_alloc')
+  #  param2 = self.getncvar(myfile,'fates_seed_alloc_mature')
   #  for i in range(0,12):
   #    if (param[i] + param2[i] > 1.0):
   #      sumparam= param[i]+param2[i]
   #      param[i]  = param[i]/sumparam
   #      param2[i] = param2[i]/sumparam
-  #  ierr = nffun.putvar(myfile, 'fates_seed_alloc', param)      
-  #  ierr = nffun.putvar(myfile, 'fates_seed_alloc_mature', param2)
+  #  ierr = self.putncvar(myfile, 'fates_seed_alloc', param)      
+  #  ierr = self.putncvar(myfile, 'fates_seed_alloc_mature', param2)
 
 
 

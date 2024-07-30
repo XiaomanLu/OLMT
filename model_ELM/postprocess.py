@@ -72,17 +72,20 @@ def postprocess(self, var, index=0, gindex=0, startyear=-1, endyear=9999, hnum=0
         if (nperyear != 12):
           #If not monthly files, ignore the last file (it only represents a single timestep)
           file_list = file_list[:-1]
-    os.system('ncrcat -O -v '+var+' '+' '.join(file_list)+' '+var+'.nc')
+    os.system('ncrcat -O -v '+var.split('_pft')[0]+' '+' '.join(file_list)+' '+var+'.nc')
     myoutput = Dataset(var+'.nc','r')
-    if (myoutput[var][:].ndim == 4):
+    if (myoutput[var.split('_pft')[0]][:].ndim == 4):
       #2D output with vertical structure
-      values = myoutput[var][:,index,yindex,xindex]
-    elif (myoutput[var][:].ndim == 3):
+      values = myoutput[var.split('_pft')[0]][:,index,yindex,xindex]
+    elif (myoutput[var.split('_pft')[0]][:].ndim == 3):
       #2D output or 1D output with vertical structure (currently assumes 1D)
-      values = myoutput[var][:,index,gindex]
+      values = myoutput[var.split('_pft')[0]][:,index,gindex]
     else:
       #1D output (unstructured grid)
-      values = myoutput[var][:,gindex]
+      values = myoutput[var.split('_pft')[0]][:,gindex]
+      if ('_pft' in var):  #PFT-level output
+          values = myoutput[var.split('_pft')[0]][:,index]
+
     if (dailytomonthly and hist_nhtfrq == -24):
       values_out = do_dailytomonthly(values)
       nperyear_out = 12
@@ -96,17 +99,19 @@ def postprocess(self, var, index=0, gindex=0, startyear=-1, endyear=9999, hnum=0
     else:
         values_out = values[:]
         nperyear_out = nperyear
-    if (ens_num == 1):
-        self.output[var] = np.zeros([len(values_out),self.nsamples],float)
-        self.output[var][:,0] = values_out
-    elif (ens_num > 1):
-        self.output[var][:,ens_num-1] = values_out
+    var_out = var
+    if ('_pft' in var):
+        var_out = var_out+str(index)
+    if (ens_num > 0 and not var_out in self.output):
+        self.output[var_out] = np.zeros([len(values_out),self.nsamples],float)
+    if (ens_num > 0):
+        self.output[var_out][:,ens_num-1] = values_out
     else:
-        self.output[var]=values_out
+        self.output[var_out]=values_out
     self.output['taxis'] = np.zeros([len(values_out)],float)
     for t in range(0,len(values_out)):
         self.output['taxis'][t] = startyear+t/nperyear_out
     if (plot):
-        plt.plot(self.output['taxis'],self.output[var],'k')
-        plt.legend([var])
+        plt.plot(self.output['taxis'],self.output[var_out],'k')
+        plt.legend([var_out])
         plt.show()

@@ -46,7 +46,7 @@ def set_histvars(self,spinup=-1,hist_mfilt=-9999,hist_nhtfrq=-9999):
           for v in self.postproc_vars:
               if ('_pft' in v):
                   #PFT specific outputs (put in h2 file)
-                  vst_pp_pft=vst_pp_pft+"'"+v.split('_')[0]+"',"
+                  vst_pp_pft=vst_pp_pft+"'"+v.split('_pft')[0]+"',"
               else:
                   vst_pp=vst_pp+"'"+v+"',"
           #Write daily for requested postprocessed variables
@@ -63,11 +63,11 @@ def set_histvars(self,spinup=-1,hist_mfilt=-9999,hist_nhtfrq=-9999):
       #Transient simulation
       if (self.postproc_vars == []):
         #Default to daily output for all variables if not postproc vars
-        if ('US-SPR' in self.site):
-            #For default SPRUCE run, set history variables
-        else:
-            self.customize_namelist(variable='hist_mfilt',value='365')
-            self.customize_namelist(variable='hist_nhtfrq',value='-24')
+        #if ('US-SPR' in self.site):
+        #    #For default SPRUCE run, set history variables
+        #else:
+        self.customize_namelist(variable='hist_mfilt',value='365')
+        self.customize_namelist(variable='hist_nhtfrq',value='-24')
       else:
         #Write annual for all vars, requested postproc vars daily
         vst_pp=''
@@ -75,7 +75,7 @@ def set_histvars(self,spinup=-1,hist_mfilt=-9999,hist_nhtfrq=-9999):
         for v in self.postproc_vars:
             if ('_pft' in v):
                 #PFT specific outputs (put in h2 file)
-                vst_pp_pft=vst_pp_pft+"'"+v.split('_')[0]+"',"
+                vst_pp_pft=vst_pp_pft+"'"+v.split('_pft')[0]+"',"
             else:
                 vst_pp=vst_pp+"'"+v+"',"
         if (vst_pp_pft != ''):

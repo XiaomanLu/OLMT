@@ -25,37 +25,41 @@ def GSA(self, myvars, n_saltelli=8192):
     psamples = saltelli.sample(problem, n_saltelli)
 
     surrogate_output = self.run_surrogate(psamples, myvars)
+    self.sens_main={}
+    self.sens_tot={}
 
     for v in myvars:
       nvar = surrogate_output[v].shape[1]
-      sens_main = np.zeros([self.nparms_ensemble,nvar],float)
-      sens_tot  = np.zeros([self.nparms_ensemble,nvar],float)
+      self.sens_main[v] = np.zeros([self.nparms_ensemble,nvar],float)
+      self.sens_tot[v]  = np.zeros([self.nparms_ensemble,nvar],float)
       for i in range(0,nvar):
         Si = sobol.analyze(problem, surrogate_output[v][:,i])
-        sens_main[:,i]=Si['S1']
-        sens_tot[:,i]=Si['ST']
+        self.sens_main[v][:,i]=Si['S1']
+        self.sens_tot[v][:,i]=Si['ST']
 
+def plot_GSA(self, myvars):
+    for v in myvars:
       #Plot main sensitivity indices
       fig,ax = plt.subplots()
       x_pos = np.cumsum(np.ones(nvar))
-      ax.bar(x_pos, sens_main[0,:], align='center', alpha=0.5)
+      ax.bar(x_pos, self.sens_main[v][0,:], align='center', alpha=0.5)
       ax.set_xticks(x_pos)
       #ax.set_xticklabels(x_labels, rotation=45)
-      bottom=sens_main[0,:]
+      bottom=self.sens_main[v][0,:]
       for p in range(1,self.nparms_ensemble):
-       ax.bar(x_pos, sens_main[p,:], bottom=bottom)
-       bottom=bottom+sens_main[p,:]
+       ax.bar(x_pos, self.sens_main[v][p,:], bottom=bottom)
+       bottom=bottom+self.sens_main[v][p,:]
       plt.legend(self.ensemble_parms)
       plt.savefig('sens_main.pdf')
       #
       #Total sensitivity indices
       fig,ax = plt.subplots()
-      ax.bar(x_pos, sens_tot[0,:], align='center', alpha=0.5)
+      ax.bar(x_pos, self.sens_tot[v][0,:], align='center', alpha=0.5)
       ax.set_xticks(x_pos)
       #ax.set_xticklabels(x_labels, rotation=45)
-      bottom=sens_tot[0,:]
+      bottom=self.sens_tot[v][0,:]
       for p in range(1,self.nparms_ensemble):
-       ax.bar(x_pos, sens_tot[p,:], bottom=bottom)
-       bottom=bottom+sens_tot[p,:]
+       ax.bar(x_pos, self.sens_tot[v][p,:], bottom=bottom)
+       bottom=bottom+self.sens_tot[v][p,:]
       plt.legend(self.ensemble_parms)
       plt.savefig('sens_tot.pdf')

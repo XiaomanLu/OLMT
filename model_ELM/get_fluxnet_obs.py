@@ -2,9 +2,7 @@ import numpy as np
 import os
 from netCDF4 import Dataset
 
-def get_fluxnet_obs(self, site='US-UMB',tstep='monthly',ystart=-1,yend=9999,fluxnet_var='GPP'):
-  myobsdir = '/lcrc/group/e3sm/ac.ricciuto/AmeriFlux'
-  #myobsdir = '/home/ac.ricciuto/fluxnet/'
+def get_fluxnet_obs(self, site='US-UMB',tstep='monthly',ystart=-1,yend=9999,fluxnet_var='GPP', myobsdir=''):
   myvars = ['TBOT','FSDS','WS','RAIN','VPD','NEE','GPP','ER','EFLX_LH_TOT','FSH']
   myvars   = ['FPSN','FSH','EFLX_LH_TOT']
 
