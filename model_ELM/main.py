@@ -214,7 +214,7 @@ class ELMcase():
     if (self.paramfile == ''):
       #Get parameter filename from case directory
       self.paramfile = self.get_namelist_variable('paramfile')
-      print('Parameter file: '+self.paramfile)
+    print('Parameter file: '+self.paramfile)
     #Copy the parameter file to the temp directory 
     os.system('cp '+self.paramfile+' '+self.OLMTdir+'/temp/clm_params.nc')
     #TODO - add metadata to the copied file about original filename
@@ -229,7 +229,7 @@ class ELMcase():
   def set_fates_param_file(self):
     if (self.fates_paramfile == ''):
         self.fates_paramfile = self.get_namelist_variable('fates_paramfile')
-        print('FATES parameter file : '+self.fates_paramfile)
+    print('FATES parameter file : '+self.fates_paramfile)
     os.system('cp '+self.fates_paramfile+' '+self.OLMTdir+'/temp/fates_paramfile.nc')
 
   def set_finidat_file(self, finidat_case='', finidat_year=0, finidat=''):
@@ -252,11 +252,11 @@ class ELMcase():
         self.casename = self.caseid+'_'+self.region+'_'+self.compset
       else:
         self.casename = self.caseid+'_'+self.site+"_"+self.compset
-      if (self.case_suffix != ''):
-          self.casename = self.casename + '_'+self.case_suffix
+      self.casename = '_'.join(filter(None,[self.casename,self.case_suffix]))
     else:
         self.casename = casename
     self.casedir = os.path.abspath(self.caseroot+'/'+self.casename)
+    #TODO - replace with a prompt that automacially deletes after 10 seconds
     if (os.path.exists(self.casedir)):
       print('Warning:  Case directory exists')
       var = input('proceed (p), remove old (r), or exit (x)? ')
@@ -443,8 +443,8 @@ class ELMcase():
     #adds capability to run with transient CO2
     if ('20TR' in self.casename or 'trans' in self.casename):
       self.xmlchange('CCSM_BGC',value='CO2A')
-      self.xmlchange('ELM_CO2_TYPE','diagnostic')
-    
+      self.xmlchange('ELM_CO2_TYPE',value='diagnostic')
+      self.xmlchange('DATM_CO2_TSERIES',value="20tr")
     comps = ['ATM','LND','ICE','OCN','CPL','GLC','ROF','WAV','ESP','IAC']
     for c in comps:
       self.xmlchange('NTASKS_'+c,value=str(self.np))
@@ -470,8 +470,10 @@ class ELMcase():
     if (self.has_finidat):
         self.customize_namelist(variable='finidat',value="'"+self.finidat+"'")
     #Setup the new case
-    result = os.system('./case.setup > case_setup.log')
-    if (result > 0):
+    print('Setting up case')
+    result = subprocess.run(['./case.setup'], stdout=subprocess.PIPE, \
+            stderr=subprocess.PIPE, text=True)
+    if (result.returncode > 0):
         print('Error: runcase.py failed to setup case')
         sys.exit(1)
     #get the default parameter files for the case
@@ -483,7 +485,7 @@ class ELMcase():
     #Note:  This requires setting a supported resolution
     self.surfdata_global = self.get_namelist_variable('fsurdat')
     self.domain_global   = self.get_namelist_variable('fatmlndfrc')
-    if ('20TR' in self.casename or 'trans' in self.casename):
+    if ('20TR' in self.casename):
         self.pftdyn_global = self.get_namelist_variable('flanduse_timeseries')
     #Set custom surface data information
     surffile=''
@@ -501,7 +503,7 @@ class ELMcase():
        pftdynfile = self.rundir+'/surfdata.pftdyn.nc'
     self.customize_namelist(variable='do_budgets',value='.false.')
     self.customize_namelist(variable='fsurdat',value="'"+surffile+"'")
-    if ('20TR' in self.casename or 'trans' in self.casename):
+    if ('20TR' in self.casename):
       if (self.nopftdyn):
           self.customize_namelist(variable='flanduse_timeseries',value='')
       else:
@@ -602,14 +604,19 @@ class ELMcase():
         self.xmlchange('LND_NY',value='1')
         self.xmlchange('ATM_NX',value='1')
         self.xmlchange('ATM_NY',value='1')
-        result = os.system('./case.setup')
+        result = subprocess.run(['./case.setup'], stdout=subprocess.PIPE, \
+            stderr=subprocess.PIPE, text=True)
+
       if (self.dobuild):
+        print('Buliding case')
         if (clean):
-          os.system('./case.build --clean-all')
-        result = os.system('./case.build')
-        if (result > 0):
+          result = subprocess.run(['./case.build','--clean-all'], \
+                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = subprocess.run(['./case.build'], \
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if (result.returncode > 0):
           print('Error:  Failed to build case.  Aborting')
-          print('See '+os.getcwd()+'/case_build.log for details')
+          print(stderr)
           sys.exit(1)
       else:
         self.xmlchange('BUILD_COMPLETE',value='TRUE')
@@ -679,13 +686,14 @@ class ELMcase():
         elif ('IELM' in self.compset):
           myinput  = open('./Buildconf/datmconf/datm.streams.txt.presaero.clim_2000')
           myoutput = open('./user_datm.streams.txt.presaero.clim_2000','w')
-        for s in myinput:
+        if ('1850' in self.compset or 'IELM' in self.compset):
+          for s in myinput:
             if ('aerosoldep_monthly' in s):
                 myoutput.write('            aerosoldep_monthly_1849-2006_1.9x2.5_c090803.nc\n')
             else:
                 myoutput.write(s)
-        myinput.close()
-        myoutput.close()
+          myinput.close()
+          myoutput.close()
       #Modify CO2 file
       if ('20TR' in self.compset):
           myinput  = open('./Buildconf/datmconf/datm.streams.txt.co2tseries.20tr')

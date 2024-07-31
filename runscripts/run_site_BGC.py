@@ -5,27 +5,28 @@ import os
 import numpy as np
 
 #Define directories
-machine = 'cades-baseline'
-caseroot='/gpfs/wolf2/cades/cli185/scratch/zdr/e3sm_cases'
-runroot='/gpfs/wolf2/cades/cli185/scratch/zdr/e3sm_run'
-#inputdata='/gpfs/wolf2/cades/cli185/world-shared/e3sm/inputdata'
-inputdata='/gpfs/wolf2/cades/cli185/proj-shared/zdr/inputdata'
-modelroot='/ccsopen/home/zdr/models/E3SM'
+machine = 'linux-generic'
+rootdir = '/home/zdr/models'
+caseroot= rootdir+'/e3sm_cases'
+runroot = rootdir+'/e3sm_run'
+inputdata = rootdir+'/inputdata'
+modelroot = rootdir+'/E3SM'
 
 #We are going to use a pre-built executable. Set exeroot='' to build 
-#exeroot='/gpfs/wolf2/cades/cli185/scratch/zdr/e3sm_run/20240729_PR-LUQ_I1850CNRDCTCBC_ad_spinup/bld'
-exeroot = '/gpfs/wolf2/cades/cli185/scratch/zdr/e3sm_run/20240729_US-MOz_IELMFATES/bld'
+exeroot = '/home/zdr/models/e3sm_run/20240730_US-MOz_I1850CNRDCTCBC_ad_spinup/bld'
+exeroot = ''
 
 #----------------------Required inputs---------------------------------------------
 site = 'PR-LUQ'            #6-character FLUXNET ID
 mettype = 'site'           #Site or reanalysis product
+case_suffix = ''           #Identifier for cases (leave blank if none)
 
-use_cpl_bypass = False     #Coupler bypass for meteorology
+use_cpl_bypass = False      #Coupler bypass for meteorology
 use_fates      = True      #Use FATES compsets
-fates_nutrient = False     #Use FATES nutrient (parteh_mode = 2)
+fates_nutrient = True      #Use FATES nutrient (parteh_mode = 2)
 
-nyears_ad      = 40       #number of years for ad spinup
-nyears_final   = 40       #number of years for final spinup 
+nyears_ad      =  0       #number of years for ad spinup
+nyears_final   = 20       #number of years for final spinup 
 nyears_trans   = -1       #number of years for transient run 
                           #If -1, the final year will be the last year of forcing data.
 
@@ -35,19 +36,19 @@ nyears_trans   = -1       #number of years for transient run
 #namelist_options['option'] = value 
 case_options={} 
 case_options['fates_paramfile'] = inputdata+'/lnd/clm2/paramdata/fates_params_api.32.0.0_pft1_c231215.nc'
-case_options['hist_mfilt']  = 365
-case_options['hist_nhtfrq'] = -24
+#case_options['hist_mfilt']  = 365
+#case_options['hist_nhtfrq'] = -24
 
 
 #--------------------ensemble options------------------------------------------------
 
-parm_list      = '' #'parm_list_FATES'    #Set parameter list (leave blank for no ensemble)
-np_ensemble    = 128   #number of ensemble numbers to run in parallel
-nsamples       = 256  #number of samples to run
+parm_list      = '' #'parm_list_example' #'parm_list_FATES'    #Set parameter list (leave blank for no ensemble)
+nsamples       = 12  #number of samples to run
+np_ensemble    = 6   #number of ensemble numbers to run in parallel (MUST be <= nsamples)
 ensemble_file = ''     #File containing samples (if blank, OLMT will generate one)
 postproc_vars=['FPSN','EFLX_LH_TOT']  #Variables to automatically post-process
-postproc_startyear = 2000
-postproc_endyear   = 2005
+postproc_startyear = 1860
+postproc_endyear   = 1862
 postproc_freq      = 'annual'   #Can be daily, monthly, annual
 
 #----------------------Define treatment cases ----------------------------------------
@@ -58,6 +59,7 @@ treatment_options={}
 
 
 #---------------End of user input -----------------------------------------------------
+
 
 #Construct the list of compsets and suppring information
 compset_type="I"
@@ -97,9 +99,9 @@ if (nyears_trans != 0):
 depends = np.cumsum(np.ones([len(compsets)],int))-2
 if (twophase):                            #add the phase 2 compset and case info
     compsets.append(compset_type+'20TR'+compset_base)  #Transient phase 2
-    nyears.append(nyears[2])
+    nyears.append(nyears[-1])
     suffix.append('phase2')
-    np.append(depends, depends[-1]+1)
+    depends = np.append(depends, depends[-1]+1)
     startyear.append(1850)
 
 ensemble=False
@@ -113,10 +115,13 @@ ncases = len(compsets)  #how many cases we are running
 jobnum = np.zeros(len(compsets),int)  #list of submitted job ids
 
 scriptdir=os.getcwd()
+
 for c in range(0,ncases):
+  mysuffix = '_'.join(filter(None,[suffix[c],case_suffix]))
+
   cases[c] = model_ELM.ELMcase(caseid='',compset=compsets[c], site=site, \
         caseroot=caseroot,runroot=runroot,inputdata=inputdata,modelroot=modelroot, \
-        machine=machine, exeroot=exeroot, suffix=suffix[c],  \
+        machine=machine, exeroot=exeroot, suffix=mysuffix,  \
         res='hcru_hcru', nyears=nyears[c],startyear=startyear[c])
 
   #Create the case
@@ -125,9 +130,9 @@ for c in range(0,ncases):
   cases[c].fates_nutrient=fates_nutrient
   #Set the custom parameter files
   if ('fates_paramfile' in case_options):
-    cases[c].fates_paramfile = case_options['fates_paramfile'][c]
+    cases[c].fates_paramfile = case_options['fates_paramfile']
   if ('paramfile' in case_options):
-    cases[c].paramfile = case_options['paramfile'][c]
+    cases[c].paramfile = case_options['paramfile']
 
   #Get forcing information
   if ('phase2' in suffix[c]):
@@ -165,7 +170,7 @@ for c in range(0,ncases):
   elif (ensemble):
     #Set up ensemble file using the file generated in the first case
     cases[c].setup_ensemble(parm_list=parm_list,np_ensemble=np_ensemble,ensemble_file=cases[c-1].ensemble_file)
-  if (c == 2):
+  if (c == 2 and not use_fates):
     #Get the dynamic PFT data
     cases[c].setup_domain_surfdata(makepftdyn=True)
   #Build the case
@@ -179,3 +184,13 @@ for c in range(0,ncases):
     jobnum[c] = cases[c].submit_case(depend=jobnum[depends[c]],ensemble=ensemble)
   #Return to script directory
   os.chdir(scriptdir)
+
+#archive this script (based on name of first case)
+archive_fname='./archive/'+cases[0].casename.replace('_ad_spinup','')
+archive_fname=archive_fname.replace('1850','').replace('20TR','')+'_'+machine
+os.system('mkdir -p archive')
+if (ensemble):
+    archive_fname = archive_fname+'_ensemble'
+os.system('cp '+__file__+' '+archive_fname+'.py')
+
+

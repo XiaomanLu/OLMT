@@ -69,7 +69,7 @@ def create_ensemble_script(self, walltime=6):
     myfile.write('cd '+self.caseroot+'/'+self.casename+'\n')
     myfile.write('export LD_LIBRARY_PATH='+ldpath+'\n\n')
     myfile.write('./preview_namelists\n\n')
-    myfile.write('ulimit -n '+str(self.nsamples*2)+'\n')
+    myfile.write('ulimit -n '+str(self.nsamples+1024)+'\n')
     myfile.write('cd '+self.OLMTdir+'\n')
     myfile.write('./manage_ensemble.py --case '+self.casename+'\n')
     myfile.close()  
@@ -84,7 +84,8 @@ def ensemble_copy(self, ens_num):
   orig_dir = str(os.path.abspath(self.runroot)+'/'+self.casename+'/run')
   ens_dir  = str(os.path.abspath(self.runroot)+'/UQ/'+self.casename+'/g'+gst[1:])
 		
-  os.system('mkdir -p '+self.runroot+'/UQ/'+self.casename+'/g'+gst[1:]+'/timing/checkpoints')
+  os.system('mkdir -p '+ens_dir+'/timing/checkpoints')
+  os.system('rm -f '+ens_dir+'/*.log.* '+ens_dir+'/*.nc '+ens_dir+'/rpointer*')
   os.system('cp  '+orig_dir+'/*_in* '+ens_dir)
   os.system('cp  '+orig_dir+'/*nml '+ens_dir)
   if (not ('CB' in self.casename)):
@@ -145,13 +146,13 @@ def ensemble_copy(self, ens_num):
                 surffile = ens_dir+'/surfdata_'+gst[1:]+'.nc'
             elif ('finidat = ' in s and self.has_finidat):
                 finidat_file_path = os.path.abspath(self.runroot)+'/UQ/'+self.dependcase+'/g'+gst[1:]
-                finidat_file_name = self.finidat.split('/')[:-1]
-                finidat_file_orig = self.finidat
+                finidat_file_name = self.finidat.split('/')[-1]
+                #finidat_file_orig = self.finidat
                 finidat_file_new  = finidat_file_path+'/'+finidat_file_name 
-                if ('ad_spinup' in self.dependcase): 
-                        os.system('python adjust_restart.py --rundir '+finidat_file_path+' --casename '+ \
-                            self.dependcase)
-                os.system('cp '+finidat_file_orig+' '+finidat_file_new)
+                #if ('ad_spinup' in self.dependcase): 
+                #        os.system('python adjust_restart.py --rundir '+finidat_file_path+' --casename '+ \
+                #            self.dependcase)
+                #os.system('cp '+finidat_file_orig+' '+finidat_file_new)
                 myoutput.write(" finidat = '"+finidat_file_new+"'\n")
             elif ('logfile =' in s):
                 #Get the current date and time

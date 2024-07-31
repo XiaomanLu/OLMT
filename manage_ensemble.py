@@ -61,13 +61,21 @@ def get_node_submit(pactive,process_nodes,mynodes):
              node_submit=n
     return(node_submit)
 
-def active_processes(processes):
+def active_processes(processes,process_jobnum,process_hang):
     """Returns the number of processes that are still running."""
     pactive=[]
     n=0
     for process in processes:
         if process.poll() is None:  # None means the process is still running
+            #Check if final restart file created
             pactive.append(1)
+            jobst = str(100000+process_jobnum[n])
+            rundir = mycase.runroot+'/UQ/'+mycase.casename+'/g'+jobst[1:]
+            yst = str(10001+mycase.run_n)[1:]
+            #if (os.path.isfile(rundir+'/'+mycase.casename+'.elm.r.'+yst+'-01-01-00000.nc')):
+            #    process_hang[n] = process_hang[n]+1
+            #if (process_hang[n] > 30):
+            #    process.kill()  # Force kill the process
         else:
             pactive.append(0)
             #Post-process ensemble member if it hasn't yet been done
@@ -75,6 +83,10 @@ def active_processes(processes):
                 ierr = postprocess_ensemble(n)
                 mycase.postprocessed[n] = 1
         n=n+1
+    print(process_jobnum)
+    print(pactive)
+    print(process_hang)
+
     return pactive
 
 def postprocess_ensemble(n):
@@ -102,6 +114,8 @@ def postprocess_ensemble(n):
 workdir = os.getcwd()
 
 processes=[]
+process_jobnum=[]
+process_hang=[]    #Keep track of how long process has been hanging
 mycase.postprocessed=np.zeros([mycase.nsamples],int)
 n_job = 1
 if (mycase.noslurm == False):
@@ -110,7 +124,7 @@ if (mycase.noslurm == False):
 
 #Run the simulations 
 while (n_job <= mycase.nsamples):
-  pactive = active_processes(processes)
+  pactive = active_processes(processes,process_jobnum,process_hang)
   if (sum(pactive) < int(mycase.np_ensemble)):
     jobst = str(100000+n_job)
     rundir = mycase.runroot+'/UQ/'+mycase.casename+'/g'+jobst[1:]+'/'
@@ -126,11 +140,17 @@ while (n_job <= mycase.nsamples):
          command = [mycase.exeroot+'/e3sm.exe']
        process = subprocess.Popen(command, shell=True, stderr=subprocess.PIPE, cwd=rundir, stdout=log_file)
        processes.append(process)
+       process_jobnum.append(n_job)
+       process_hang.append(0)
     n_job=n_job+1
   else:
     time.sleep(1)
 
-#wait on remaining processes
+while (sum(pactive) > 0):
+    pactive = active_processes(processes,process_jobnum,process_hang)
+    time.sleep(1)
+
+#wait on remaining processes (no longer relevant?)
 for process in processes:
     process.wait()
 
