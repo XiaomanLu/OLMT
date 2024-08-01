@@ -5,15 +5,14 @@ import os
 import numpy as np
 
 #Define directories
-machine = 'linux-generic'
-rootdir = '/home/zdr/models'
+machine = 'pm-cpu'
+rootdir = os.environ['SCRATCH']
 caseroot= rootdir+'/e3sm_cases'
 runroot = rootdir+'/e3sm_run'
-inputdata = rootdir+'/inputdata'
-modelroot = rootdir+'/E3SM'
+inputdata = '/global/cfs/cdirs/e3sm/inputdata'
+modelroot = '/global/homes/r/ricciuto/models/E3SM'
 
 #We are going to use a pre-built executable. Set exeroot='' to build 
-exeroot = '/home/zdr/models/e3sm_run/20240730_US-MOz_I1850CNRDCTCBC_ad_spinup/bld'
 exeroot = ''
 
 #----------------------Required inputs---------------------------------------------
@@ -25,9 +24,9 @@ use_cpl_bypass = False      #Coupler bypass for meteorology
 use_fates      = True      #Use FATES compsets
 fates_nutrient = True      #Use FATES nutrient (parteh_mode = 2)
 
-nyears_ad      =  0       #number of years for ad spinup
-nyears_final   = 20       #number of years for final spinup 
-nyears_trans   = -1       #number of years for transient run 
+nyears_ad      = 100       #number of years for ad spinup
+nyears_final   =   0       #number of years for final spinup 
+nyears_trans   =   0       #number of years for transient run 
                           #If -1, the final year will be the last year of forcing data.
 
 #---------------------Optional inputs via namelist variables------------------------
@@ -36,19 +35,19 @@ nyears_trans   = -1       #number of years for transient run
 #namelist_options['option'] = value 
 case_options={} 
 case_options['fates_paramfile'] = inputdata+'/lnd/clm2/paramdata/fates_params_api.32.0.0_pft1_c231215.nc'
-#case_options['hist_mfilt']  = 365
-#case_options['hist_nhtfrq'] = -24
+case_options['hist_mfilt']  = '365,365'
+case_options['hist_nhtfrq'] = '-24,-24'
 
 
 #--------------------ensemble options------------------------------------------------
 
 parm_list      = '' #'parm_list_example' #'parm_list_FATES'    #Set parameter list (leave blank for no ensemble)
-nsamples       = 12  #number of samples to run
-np_ensemble    = 6   #number of ensemble numbers to run in parallel (MUST be <= nsamples)
+nsamples       = 256  #number of samples to run
+np_ensemble    = 128   #number of ensemble numbers to run in parallel (MUST be <= nsamples)
 ensemble_file = ''     #File containing samples (if blank, OLMT will generate one)
-postproc_vars=['FPSN','EFLX_LH_TOT']  #Variables to automatically post-process
-postproc_startyear = 1860
-postproc_endyear   = 1862
+postproc_vars=['FATES_VEGC','FATES_GPP']  #Variables to automatically post-process
+postproc_startyear =  91
+postproc_endyear   = 100
 postproc_freq      = 'annual'   #Can be daily, monthly, annual
 
 #----------------------Define treatment cases ----------------------------------------

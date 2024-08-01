@@ -216,6 +216,7 @@ class ELMcase():
       self.paramfile = self.get_namelist_variable('paramfile')
     print('Parameter file: '+self.paramfile)
     #Copy the parameter file to the temp directory 
+    os.system('mkdir -p '+self.OLMTdir+'/temp')
     os.system('cp '+self.paramfile+' '+self.OLMTdir+'/temp/clm_params.nc')
     #TODO - add metadata to the copied file about original filename
 
@@ -279,8 +280,8 @@ class ELMcase():
     if (self.compiler != ''):
       cmd = cmd+' --compiler '+self.compiler
     #ADD MPILIB OPTION HERE
-    if ('FATES' in self.compset):
-      cmd = cmd+' --mpilib mpi-serial'  
+    #if ('FATES' in self.compset):
+    #  cmd = cmd+' --mpilib mpi-serial'  
     cmd = cmd+' > '+self.OLMTdir+'/create_newcase.log'
     os.chdir(self.modelroot+'/cime/scripts')
     result = os.system(cmd)
