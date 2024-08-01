@@ -41,7 +41,7 @@ case_options['hist_nhtfrq'] = '-24,-24'
 
 #--------------------ensemble options------------------------------------------------
 
-parm_list      = '' #'parm_list_example' #'parm_list_FATES'    #Set parameter list (leave blank for no ensemble)
+parm_list      = 'parm_list_fatesUQ' #'parm_list_example' #'parm_list_FATES'    #Set parameter list (leave blank for no ensemble)
 nsamples       = 256  #number of samples to run
 np_ensemble    = 128   #number of ensemble numbers to run in parallel (MUST be <= nsamples)
 ensemble_file = ''     #File containing samples (if blank, OLMT will generate one)
