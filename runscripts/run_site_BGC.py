@@ -32,7 +32,7 @@ nyears_trans   =   0       #number of years for transient run
 #---------------------Optional inputs via namelist variables------------------------
 #Define a dictionary to handle namelist options.
 #note:  use surffile, domainfile, pftdynfile, metdir instead of the standard namelist variables for those files.
-#namelist_options['option'] = value 
+#case_options['option'] = value 
 case_options={} 
 case_options['fates_paramfile'] = inputdata+'/lnd/clm2/paramdata/fates_params_api.32.0.0_pft1_c231215.nc'
 case_options['hist_mfilt']  = '365,365'

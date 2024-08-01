@@ -22,24 +22,16 @@ def calc_posterior(self,parms,myvars):
     if (prior > 0.0):
       output = self.run_surrogate(parms.reshape(1, -1), myvars)
       for v in myvars:
-        # if (v == 'GPP'):
-        #     output[v]=output[v]*24*3600
         myoutput = output[v].flatten()
         myobs    = self.obs[v].flatten()
         myerr    = self.obs_err[v].flatten()
-        if v == 'FPSN' or v == 'GPP':
-            myerr    = myobs*0+2.0
-        if v == 'EFLX_LH_TOT':
-            myerr = myobs*0+10.0
         for n in range(0,len(myoutput)):
-            if ((myobs[n]) > -9000 and myerr[n] > 0 and \
-                    n % 12 > 0 and n %12 < 12):
+            if ((myobs[n]) > -9000 and myerr[n] > 0):
                 resid = (myoutput[n] - myobs[n])
                 ri = (resid/myerr[n])**2
                 li = -1.0 * np.log(2.0*np.pi)/2.0 - \
                      np.log(myerr[n]) - ri/2.0
                 post = post + li
-                #print(v,n,myobs[n],myoutput[n],myerr[n])
     else:
         post = -9999999
         output={}
@@ -62,7 +54,9 @@ def MCMC(self, parms, myvars, nevals, type='uniform', nburn=1000, burnsteps=10, 
     chain_prop = np.zeros((nparms,nevals))
     chain_burn = np.zeros((nparms,nevals))
     output     = {}
+    self.nobs  = {}
     for v in myvars:
+      self.nobs[v] = len(self.output[v])
       output[v]     = np.zeros((self.nobs[v],nevals))
     mycov      = np.zeros((nparms,nparms))
     for p in range(0,nparms):
@@ -112,11 +106,11 @@ def MCMC(self, parms, myvars, nevals, type='uniform', nburn=1000, burnsteps=10, 
                     else:
                         #if (j == k):
                         mycov[j,k] = thisscalefac * mycov[j,k]
-                    if (j == k):
-                        print(j, scalefac,mycov[j,j]/(parm_step[j]**2))
+                    #if (j == k):
+                    #    print(j, scalefac,mycov[j,j]/(parm_step[j]**2))
 
 
-            print('BURNSTEP', i/nburn, acc_ratio, thisscalefac, scalefac)
+            #print('BURNSTEP', i/nburn, acc_ratio, thisscalefac, scalefac)
             mycov_step = np.cov(chain_prop[0:nparms,accepted_tot- \
                                                   accepted_step:accepted_tot])
             #print(np.corrcoef(chain[0:4,i-nburn:i]))
@@ -160,7 +154,7 @@ def MCMC(self, parms, myvars, nevals, type='uniform', nburn=1000, burnsteps=10, 
             if (post > post_best):
                 post_best = post
                 parms_best = parms
-                print(post_best)
+                #print(post_best)
                 output_best = thisoutput
 
         #populate the chain matrix
@@ -172,10 +166,10 @@ def MCMC(self, parms, myvars, nevals, type='uniform', nburn=1000, burnsteps=10, 
               output[v][:,i] = thisoutput[v][:]
             else:
               output[v][:,i] = thisoutput_last[v][:]
-        if (i % 1000 == 0):
-            print(' -- '+str(i)+' --\n')
+        #if (i % 1000 == 0):
+        #    print(' -- '+str(i)+' --\n')
 
-    print("Computing statistics")
+    #print("Computing statistics")
     chain_afterburn = chain[0:nparms,int(nburn*burnsteps):]
     chain_sorted = chain_afterburn
     output_sorted={}

@@ -41,6 +41,7 @@ def plot_GSA(self, myvars):
     for v in myvars:
       #Plot main sensitivity indices
       fig,ax = plt.subplots()
+      nvar = self.sens_main[v].shape[1]
       x_pos = np.cumsum(np.ones(nvar))
       ax.bar(x_pos, self.sens_main[v][0,:], align='center', alpha=0.5)
       ax.set_xticks(x_pos)
@@ -50,7 +51,7 @@ def plot_GSA(self, myvars):
        ax.bar(x_pos, self.sens_main[v][p,:], bottom=bottom)
        bottom=bottom+self.sens_main[v][p,:]
       plt.legend(self.ensemble_parms)
-      plt.savefig('sens_main.pdf')
+      plt.savefig('sens_main_'+v+'.pdf')
       #
       #Total sensitivity indices
       fig,ax = plt.subplots()
@@ -62,4 +63,4 @@ def plot_GSA(self, myvars):
        ax.bar(x_pos, self.sens_tot[v][p,:], bottom=bottom)
        bottom=bottom+self.sens_tot[v][p,:]
       plt.legend(self.ensemble_parms)
-      plt.savefig('sens_tot.pdf')
+      plt.savefig('sens_tot_'+v+'.png')
