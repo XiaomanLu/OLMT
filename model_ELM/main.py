@@ -727,7 +727,7 @@ class ELMcase():
         print(result.stderr)
         sys.exit(1)
 
-  def submit_case(self,depend=-1,ensemble=False):
+  def submit_case(self,depend=-1,ensemble=False, multisite_script=''):
     #Create a pickle file of the model object for later use
     #Keep a copy in the case directory and OLMT directory
     self.create_pkl(outdir=self.casedir)
@@ -740,16 +740,18 @@ class ELMcase():
         #Create the PBS script
         create_ensemble_script(self)
         scriptfile = './case.submit_ensemble'
+    elif (multisite_script != ''):
+        scriptfile = multisite_script
     else:
         scriptfile = './case.submit'
     os.chdir(self.casedir)
     if (depend > 0 and not self.noslurm):
-      if (ensemble):
+      if (ensemble or multisite_script != ''):
           cmd = [mysubmit,'--dependency=afterok:'+str(depend),scriptfile]
       else:
           cmd = [scriptfile,'--prereq',str(depend)]
     else:
-      if (ensemble and not self.noslurm):
+      if ((ensemble or multisite_script != '') and not self.noslurm):
           cmd = [mysubmit,scriptfile]
       else:
           cmd = [scriptfile]

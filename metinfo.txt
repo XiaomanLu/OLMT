@@ -1,0 +1,2 @@
+#Define default paths for reanalysis meteorological datasets
+gswp3: atm/datm7/atm_forcing.datm7.GSWP3.0.5d.v2.c180716

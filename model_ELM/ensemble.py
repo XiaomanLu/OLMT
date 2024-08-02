@@ -76,6 +76,45 @@ def create_ensemble_script(self, walltime=6):
     os.system('chmod u+x case.submit_ensemble')
     self.rundir_UQ = self.runroot+'/UQ/'+self.casename
 
+def create_multisite_script(self,sites,scriptdir, walltime=6):
+    #Create the PBS script we will submit to run multiple sites
+    os.chdir(self.casedir)
+    #Get the LD_LIBRARY_PATH from software environment
+    softenv = open('software_environment.txt','r')
+    for s in softenv:
+        if s.split('=')[0].strip() == 'LD_LIBRARY_PATH':
+            ldpath = s.split('=')[1].strip()
+    softenv.close()
+    self.npernode=int(self.xmlquery('MAX_TASKS_PER_NODE'))
+    nnodes = int(np.ceil(len(sites)/self.npernode))
+    os.system('mkdir -p '+scriptdir+'/multisite')
+    fname = scriptdir+'/multisite/'+self.casename.replace('_'+self.site,'')+'.sh'
+    myfile = open(fname,'w')
+    myfile.write('#!/bin/bash -e\n\n')
+    if (self.queue == 'debug'):
+        walltime=2
+    myfile.write('#SBATCH -t '+str(walltime)+':00:00\n')
+    myfile.write('#SBATCH -J ens_'+self.casename.replace('_'+self.site,'')+'\n')
+    myfile.write('#SBATCH --nodes='+str(nnodes)+'\n')
+    if (self.project != ''):
+        myfile.write('#SBATCH -A '+self.project+'\n')
+    myfile.write('#SBATCH -p '+self.queue+'\n')
+    myfile.write('cd '+self.caseroot+'/'+self.casename+'\n')
+    myfile.write('export LD_LIBRARY_PATH='+ldpath+'\n\n')
+    for s in sites:
+      myfile.write('cd '+self.caseroot+'/'+self.casename.replace(sites[0],s)+'\n')
+      myfile.write('./preview_namelists\n')
+      myfile.write('cd '+self.runroot+'/'+self.casename.replace(sites[0],s)+'/run\n')
+      myfile.write('mkdir -p timing/checkpoints\n')
+      if (self.noslurm):
+        myfile.write(self.exeroot+'/e3sm.exe &\n\n')
+      else:
+        myfile.write('srun -n 1 -c 1 '+self.exeroot+'/e3sm.exe &\n\n')
+    myfile.write('wait\n')
+    myfile.close()
+    os.system('chmod u+x '+fname)
+    return fname
+
 def ensemble_copy(self, ens_num):
 
   gst=str(100000+int(ens_num))
