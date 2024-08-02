@@ -34,7 +34,6 @@ class ELMcase():
         self.caseroot=caseroot
         self.exeroot=exeroot
         self.OLMTdir = os.getcwd()+'/..'
-        print('OLMT dir: '+self.OLMTdir)
         #Set default resolution (site or regional)
         self.site=site
         if (res == ''):
@@ -216,7 +215,6 @@ class ELMcase():
       self.paramfile = self.get_namelist_variable('paramfile')
     print('Parameter file: '+self.paramfile)
     #Copy the parameter file to the temp directory 
-    os.system('mkdir -p '+self.OLMTdir+'/temp')
     os.system('cp '+self.paramfile+' '+self.OLMTdir+'/temp/clm_params.nc')
     #TODO - add metadata to the copied file about original filename
 
@@ -273,23 +271,19 @@ class ELMcase():
     #IF the resolution is user defined (site), we will first create a case with 
     #original resolution to get them correct domain, surface and land use files.
     cmd = './create_newcase --case '+self.casedir+' --mach '+self.machine+' --compset '+ \
-           self.compset+' --res '+self.res+' --walltime '+timestr+' --handle-preexisting-dirs u' \
-           ' > '+self.OLMTdir+'/create_newcase.log'
+           self.compset+' --res '+self.res+' --walltime '+timestr+' --handle-preexisting-dirs u' 
     if (self.project != ''):
       cmd = cmd+' --project '+self.project
     if (self.compiler != ''):
       cmd = cmd+' --compiler '+self.compiler
     #ADD MPILIB OPTION HERE
-    #if ('FATES' in self.compset):
-    #  cmd = cmd+' --mpilib mpi-serial'  
     cmd = cmd+' > '+self.OLMTdir+'/create_newcase.log'
     os.chdir(self.modelroot+'/cime/scripts')
-    result = os.system(cmd)
-    if (os.path.isdir(self.casedir)):
-      print(self.casename+' created.  See create_newcase.log for details')
-      os.system('mv '+self.OLMTdir+'/create_newcase.log '+self.casedir)
-    else:
-      print('Error:  runcase.py Failed to create case.  See create_newcase.log for details')
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, \
+            stderr=subprocess.PIPE, text=True, shell=True)
+    if (result.returncode > 0):
+      print('Error:  Failed to create case.')
+      print(result.stderr)
       sys.exit(1)
     os.chdir(self.casedir)
     if (self.inputdata_path == ''):
@@ -315,13 +309,10 @@ class ELMcase():
     if (pftdynfile == '' and makepftdyn and not (self.nopftdyn)):
       self.makepointdata(self.pftdyn_global)
     if (domainfile != ''):
-      print('\n -----INFO: using user-provided DOMAIN')
-      print('surface data file: '+ domainfile)
+      print('\nDomain file:             '+ domainfile)
     if (surffile != ''):
-      print('\n -----INFO: using user-provided SURFDATA')
-      print('surface data file: '+ surffile)  
+      print('surface data file:       '+ surffile)  
     if (pftdynfile != ''):
-      print('\n -----INFO: using user-provided 20th landuse data file')
       print('20th landuse data file: '+pftdynfile+"'\n")
 
   def get_metdata_year_range(self):
@@ -380,6 +371,8 @@ class ELMcase():
     elif (not self.is_bypass() and ('phase2') in self.casename):
         self.met_alignyear = self.startyear
         self.met_startyear = self.startyear
+    print('\nMet data source: '+self.forcing)
+    print('Met data location: '+self.metdir)
     print('Starting met data year: ', self.met_startyear)
     if ('20TR' in self.compset or 'trans' in self.casename):
         print('Ending   met data year: ', self.met_endyear)
@@ -387,7 +380,7 @@ class ELMcase():
         print('Ending   met data year: ', self.met_endyear_spinup)
     if (not self.is_bypass()):
         print('Met data align year: ', self.met_alignyear)
-    print('Run length (years): ',self.run_n)
+    print('Run length (years): '+str(self.run_n)+'\n')
 
   def xmlchange(self, variable, value='', append=''):
       os.chdir(self.casedir)
@@ -445,7 +438,7 @@ class ELMcase():
     if ('20TR' in self.casename or 'trans' in self.casename):
       self.xmlchange('CCSM_BGC',value='CO2A')
       self.xmlchange('ELM_CO2_TYPE',value='diagnostic')
-      self.xmlchange('DATM_CO2_TSERIES',value="20tr")
+      #self.xmlchange('DATM_CO2_TSERIES',value="20tr")
     comps = ['ATM','LND','ICE','OCN','CPL','GLC','ROF','WAV','ESP','IAC']
     for c in comps:
       self.xmlchange('NTASKS_'+c,value=str(self.np))
@@ -471,11 +464,11 @@ class ELMcase():
     if (self.has_finidat):
         self.customize_namelist(variable='finidat',value="'"+self.finidat+"'")
     #Setup the new case
-    print('Setting up case')
     result = subprocess.run(['./case.setup'], stdout=subprocess.PIPE, \
             stderr=subprocess.PIPE, text=True)
     if (result.returncode > 0):
         print('Error: runcase.py failed to setup case')
+        print(result.stderr)
         sys.exit(1)
     #get the default parameter files for the case
     self.set_param_file()
@@ -609,7 +602,6 @@ class ELMcase():
             stderr=subprocess.PIPE, text=True)
 
       if (self.dobuild):
-        print('Buliding case')
         if (clean):
           result = subprocess.run(['./case.build','--clean-all'], \
                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -617,7 +609,7 @@ class ELMcase():
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if (result.returncode > 0):
           print('Error:  Failed to build case.  Aborting')
-          print(stderr)
+          print(result.stderr)
           sys.exit(1)
       else:
         self.xmlchange('BUILD_COMPLETE',value='TRUE')
@@ -725,9 +717,15 @@ class ELMcase():
 
       # run preview_namelists to copy user_datm.streams.... to CaseDocs
       if os.path.exists(os.path.abspath(self.modelroot)+'/cime/scripts/Tools/preview_namelists'):
-        os.system(os.path.abspath(self.modelroot)+'/cime/scripts/Tools/preview_namelists')
+        cmd=os.path.abspath(self.modelroot)+'/cime/scripts/Tools/preview_namelists'
       else:
-        os.system(os.path.abspath(self.modelroot)+'/cime/CIME/Tools/preview_namelists')
+        cmd=os.path.abspath(self.modelroot)+'/cime/CIME/Tools/preview_namelists'
+      result = subprocess.run(cmd, stdout=subprocess.PIPE, \
+            stderr=subprocess.PIPE, text=True, shell=True)
+      if (result.returncode > 0):
+        print('Error:  Failed to preview namelists.')
+        print(result.stderr)
+        sys.exit(1)
 
   def submit_case(self,depend=-1,ensemble=False):
     #Create a pickle file of the model object for later use
@@ -759,7 +757,7 @@ class ELMcase():
     output = result.stdout.strip()
     if (not self.noslurm):
       jobnum = int(output.split()[-1])
-      print('submitted '+str(jobnum))
+      print('\nSubmitted '+str(jobnum))
     else:
       jobnum=0
     os.chdir(self.OLMTdir)

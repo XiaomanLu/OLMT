@@ -1,22 +1,25 @@
 import sys
 sys.path.append('..')
 import model_ELM
+import OLMTinfo 
 import os
 import numpy as np
 
-#Define directories
-machine = 'pm-cpu'
-rootdir = os.environ['SCRATCH']
+
+#Get default directories, automatically detect machine if machine_name=''
+machine, rootdir, inputdata = OLMTinfo.get_machine_info(machine_name='')
+
+#Overwrite rootdir and inputdata below if you want to override defaults
 caseroot= rootdir+'/e3sm_cases'
 runroot = rootdir+'/e3sm_run'
-inputdata = '/global/cfs/cdirs/e3sm/inputdata'
-modelroot = '/global/homes/r/ricciuto/models/E3SM'
+modelroot = os.environ['HOME']+'/models/E3SM'
 
 #We are going to use a pre-built executable. Set exeroot='' to build 
 exeroot = ''
 
 #----------------------Required inputs---------------------------------------------
-site = 'PR-LUQ'            #6-character FLUXNET ID
+sites = ['PR-LUQ']          #List of sites (6-character FLUXNET ID) or 'all for all sites in group
+sitegroup = 'AmeriFlux'    #Sites defined in <inputdata>/lnd/clm2/PTCLM/<sitegroup>_sitedata.txt
 mettype = 'site'           #Site or reanalysis product
 case_suffix = ''           #Identifier for cases (leave blank if none)
 
@@ -59,7 +62,6 @@ treatment_options={}
 
 #---------------End of user input -----------------------------------------------------
 
-
 #Construct the list of compsets and suppring information
 compset_type="I"
 if (use_cpl_bypass):
@@ -72,7 +74,7 @@ if (use_fates):
 compset_type="I"
 if (use_cpl_bypass):
     compset_type='ICB'
-elif ((mettype != 'site' or 'PR-LUQ' in site) and nyears_trans != 0):
+elif ((mettype != 'site' or 'PR-LUQ' in sites) and nyears_trans != 0):
     twophase=True       #if using DATM and reanalysis, split into 2 cases
 
 #Define 3 standard cases (ad spinup, regular spinup, transient)
@@ -108,40 +110,59 @@ if (parm_list != ''):
     ensemble=True
 #To do:  Add treatment cases
 
+print('Machine: '+machine)
+print('Run root directory:  '+runroot)
+print('Case root directory: '+caseroot)
+print('Input data directory: '+inputdata)
+print('Model root directory: '+modelroot+'\n')
 
-cases={}
-ncases = len(compsets)  #how many cases we are running
-jobnum = np.zeros(len(compsets),int)  #list of submitted job ids
+print('\nELM simulation info:')
+for c in range(0,len(compsets)):
+    print('Compset '+str(c+1)+': '+compsets[c])
+    print('   Simulation starting year: '+str(startyear[c]))
+    if (nyears[c] > 0):
+        print('   Simulation length:        '+str(nyears[c]))
+print('\n')
+if (ensemble):
+    print('Ensemble size:  '+str(nsamples))
+    print('Parameter list: '+parm_list+'\n')
 
-scriptdir=os.getcwd()
+nsites = len(sites)
+for site in sites:
+  cases={}
+  ncases = len(compsets)  #how many cases we are running
+  jobnum = np.zeros(len(compsets),int)  #list of submitted job ids
 
-for c in range(0,ncases):
-  mysuffix = '_'.join(filter(None,[suffix[c],case_suffix]))
+  scriptdir=os.getcwd()
 
-  cases[c] = model_ELM.ELMcase(caseid='',compset=compsets[c], site=site, \
+  for c in range(0,ncases):
+    mysuffix = '_'.join(filter(None,[suffix[c],case_suffix]))
+
+    cases[c] = model_ELM.ELMcase(caseid='',compset=compsets[c], site=site, \
         caseroot=caseroot,runroot=runroot,inputdata=inputdata,modelroot=modelroot, \
         machine=machine, exeroot=exeroot, suffix=mysuffix,  \
         res='hcru_hcru', nyears=nyears[c],startyear=startyear[c])
 
-  #Create the case
-  cases[c].create_case()
-  cases[c].case_options = case_options
-  cases[c].fates_nutrient=fates_nutrient
-  #Set the custom parameter files
-  if ('fates_paramfile' in case_options):
-    cases[c].fates_paramfile = case_options['fates_paramfile']
-  if ('paramfile' in case_options):
-    cases[c].paramfile = case_options['paramfile']
+    #Create the case
+    cases[c].create_case()
+    cases[c].case_options = case_options
+    cases[c].fates_nutrient=fates_nutrient
+    #Set the custom parameter files
+    if ('fates_paramfile' in case_options):
+      cases[c].fates_paramfile = case_options['fates_paramfile']
+    if ('paramfile' in case_options):
+      cases[c].paramfile = case_options['paramfile']
 
-  #Get forcing information
-  if ('phase2' in suffix[c]):
+    #Get forcing information
+    print('Getting forcing information')
+    if ('phase2' in suffix[c]):
       #Set the starting year from the last case
       cases[c].startyear = cases[c-1].startyear+cases[c-1].run_n
-  cases[c].get_forcing(mettype=mettype)
+    cases[c].get_forcing(mettype=mettype)
 
-  #Set the initial data file (if depends on previous case)
-  cases[c].dependcase=''
-  if (depends[c] >= 0):
+    #Set the initial data file (if depends on previous case)
+    cases[c].dependcase=''
+    if (depends[c] >= 0):
       #Set the iniial data file from the last year of the prev case
       finidat_year = cases[depends[c]].run_n+1
       if ('20TR' in cases[depends[c]].compset or 'trans' in cases[depends[c]].compset):
@@ -150,39 +171,43 @@ for c in range(0,ncases):
               finidat_year=finidat_year)
       cases[c].dependcase = cases[depends[c]].casename
 
-  #Set postprocessing variables
-  if (ncases == 1 or '20TR' in compsets[c] or 'trans' in compsets[c]):
-    cases[c].postproc_vars = postproc_vars
-    cases[c].postproc_startyear = postproc_startyear
-    cases[c].postproc_endyear = postproc_endyear
-    cases[c].postproc_freq = postproc_freq
-  else:
-    cases[c].postproc_vars=[]
+    #Set postprocessing variables
+    if (ncases == 1 or '20TR' in compsets[c] or 'trans' in compsets[c]):
+      cases[c].postproc_vars = postproc_vars
+      cases[c].postproc_startyear = postproc_startyear
+      cases[c].postproc_endyear = postproc_endyear
+      cases[c].postproc_freq = postproc_freq
+    else:
+      cases[c].postproc_vars=[]
 
-  #Set up the case (surface, domain and pftdata
-  cases[c].setup_case()
-  if (c == 0):
-    #Get the surface and domain data 
-    cases[c].setup_domain_surfdata(makesurfdat=True,makedomain=True)
-    if (ensemble):
-      cases[c].setup_ensemble(parm_list=parm_list,np_ensemble=np_ensemble,nsamples=nsamples)
-  elif (ensemble):
-    #Set up ensemble file using the file generated in the first case
-    cases[c].setup_ensemble(parm_list=parm_list,np_ensemble=np_ensemble,ensemble_file=cases[c-1].ensemble_file)
-  if (c == 2 and not use_fates):
-    #Get the dynamic PFT data
-    cases[c].setup_domain_surfdata(makepftdyn=True)
-  #Build the case
-  cases[c].build_case()
-  #Submit the case
-  if (depends[c] < 0):  #no dependency
-    jobnum[c] = cases[c].submit_case(ensemble=ensemble)
-    #Set exeroot for subsequent cases so we don't have to rebuild
-    exeroot = cases[c].exeroot
-  else:
-    jobnum[c] = cases[c].submit_case(depend=jobnum[depends[c]],ensemble=ensemble)
-  #Return to script directory
-  os.chdir(scriptdir)
+    #Set up the case (surface, domain and pftdata
+    print('Setting up case for site: '+site)
+    cases[c].setup_case()
+    if (c == 0):
+      #Get the surface and domain data 
+      cases[c].setup_domain_surfdata(makesurfdat=True,makedomain=True)
+      if (ensemble):
+        cases[c].setup_ensemble(parm_list=parm_list,np_ensemble=np_ensemble,nsamples=nsamples)
+    elif (ensemble):
+      #Set up ensemble file using the file generated in the first case
+      cases[c].setup_ensemble(parm_list=parm_list,np_ensemble=np_ensemble,ensemble_file=cases[c-1].ensemble_file)
+    if (c == 2 and not use_fates):
+      #Get the dynamic PFT data
+      cases[c].setup_domain_surfdata(makepftdyn=True)
+    #Build the case
+    print('Building case')
+    cases[c].build_case()
+    #Submit the case
+    print('Submitting case')
+    if (depends[c] < 0):  #no dependency
+      jobnum[c] = cases[c].submit_case(ensemble=ensemble)
+      #Set exeroot for all subsequent cases/sites so we don't have to rebuild
+      if (site == sites[0]):
+        exeroot = cases[c].exeroot
+    else:
+      jobnum[c] = cases[c].submit_case(depend=jobnum[depends[c]],ensemble=ensemble)
+    #Return to script directory
+    os.chdir(scriptdir)
 
 #archive this script (based on name of first case)
 archive_fname='./archive/'+cases[0].casename.replace('_ad_spinup','')
