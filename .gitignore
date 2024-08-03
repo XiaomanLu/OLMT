@@ -5,6 +5,9 @@ plots/
 UQ_output/
 srcmods*
 run_logs_archive/
+pklfiles/
+runscripts/archive
+runscripts/multisite
 
 # files created by OLMT executions
 run.*

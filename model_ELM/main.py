@@ -755,13 +755,18 @@ class ELMcase():
           cmd = [mysubmit,scriptfile]
       else:
           cmd = [scriptfile]
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    output = result.stdout.strip()
-    if (not self.noslurm):
-      jobnum = int(output.split()[-1])
-      print('\nSubmitted '+str(jobnum))
+    if (self.noslurm):
+        log_file_path='./case_submit.log'
+        with open(log_file_path, "w") as log_file:
+            result = subprocess.run(cmd, stderr=subprocess.STDOUT, \
+                stdout=log_file)
+            jobnum=0
     else:
-      jobnum=0
+        result = subprocess.run(cmd, stderr=subprocess.STDOUT, \
+                stdout=subprocess.PIPE, text=True)
+        output = result.stdout.strip()
+        jobnum = int(output.split()[-1])
+        print('\nSubmitted '+str(jobnum))
     os.chdir(self.OLMTdir)
     return jobnum
 

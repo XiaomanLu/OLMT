@@ -61,6 +61,15 @@ def get_node_submit(pactive,process_nodes,mynodes):
              node_submit=n
     return(node_submit)
 
+def check_run_success(n):
+    success=False
+    jobst = str(100000+n)
+    rundir = mycase.runroot+'/UQ/'+mycase.casename+'/g'+jobst[1:]
+    yst = str(10000+mycase.startyear+mycase.run_n)[1:]
+    if (os.path.isfile(rundir+'/'+mycase.casename+'.elm.r.'+yst+'-01-01-00000.nc')):
+        success=True
+    return success
+
 def active_processes(processes,process_jobnum,process_hang):
     """Returns the number of processes that are still running."""
     pactive=[]
@@ -69,24 +78,22 @@ def active_processes(processes,process_jobnum,process_hang):
         if process.poll() is None:  # None means the process is still running
             #Check if final restart file created
             pactive.append(1)
-            jobst = str(100000+process_jobnum[n])
-            rundir = mycase.runroot+'/UQ/'+mycase.casename+'/g'+jobst[1:]
-            yst = str(10001+mycase.run_n)[1:]
-            #if (os.path.isfile(rundir+'/'+mycase.casename+'.elm.r.'+yst+'-01-01-00000.nc')):
-            #    process_hang[n] = process_hang[n]+1
-            #if (process_hang[n] > 30):
-            #    process.kill()  # Force kill the process
+            if (check_run_success(process_jobnum[n])):
+                process_hang[n] = process_hang[n]+1
+            if (process_hang[n] > 30):
+                process.kill()  # Force kill the process
         else:
             pactive.append(0)
             #Post-process ensemble member if it hasn't yet been done
             if (mycase.postprocessed[n] == 0):
-                ierr = postprocess_ensemble(n)
+                print(n, check_run_success(process_jobnum[n]))
+                if (check_run_success(process_jobnum[n])):
+                    ierr = postprocess_ensemble(process_jobnum[n])
+                else:
+                    print('Ensemble member '+str(process_jobnum[n])+ \
+                            'Failed to complete')
                 mycase.postprocessed[n] = 1
         n=n+1
-    print(process_jobnum)
-    print(pactive)
-    print(process_hang)
-
     return pactive
 
 def postprocess_ensemble(n):
@@ -101,13 +108,13 @@ def postprocess_ensemble(n):
             mypfts=mycase.postproc_pfts
         for p in mypfts:
           if (mycase.postproc_freq == 'daily'):  #default
-            mycase.postprocess(v, ens_num=n+1,startyear=mycase.postproc_startyear, \
+            mycase.postprocess(v, ens_num=n,startyear=mycase.postproc_startyear, \
                   endyear=mycase.postproc_endyear,index=p,hnum=hnum)
           elif (mycase.postproc_freq == 'monthly'):  #monthly
-            mycase.postprocess(v, ens_num=n+1,startyear=mycase.postproc_startyear, \
+            mycase.postprocess(v, ens_num=n,startyear=mycase.postproc_startyear, \
                   endyear=mycase.postproc_endyear,index=p,hnum=hnum, dailytomonthly=True)
           elif (mycase.postproc_freq == 'annual'):  #annual
-            mycase.postprocess(v, ens_num=n+1,startyear=mycase.postproc_startyear, \
+            mycase.postprocess(v, ens_num=n,startyear=mycase.postproc_startyear, \
                   endyear=mycase.postproc_endyear,index=p,hnum=hnum, annualmean=True)
   return 0
 
@@ -138,7 +145,7 @@ while (n_job <= mycase.nsamples):
          process_nodes.append(node_submit)
        else:
          command = [mycase.exeroot+'/e3sm.exe']
-       process = subprocess.Popen(command, shell=True, stderr=subprocess.PIPE, cwd=rundir, stdout=log_file)
+       process = subprocess.Popen(command, shell=True, stderr=subprocess.STDOUT, cwd=rundir, stdout=log_file)
        processes.append(process)
        process_jobnum.append(n_job)
        process_hang.append(0)
@@ -149,10 +156,6 @@ while (n_job <= mycase.nsamples):
 while (sum(pactive) > 0):
     pactive = active_processes(processes,process_jobnum,process_hang)
     time.sleep(1)
-
-#wait on remaining processes (no longer relevant?)
-for process in processes:
-    process.wait()
 
 mycase.create_pkl()
 

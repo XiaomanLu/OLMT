@@ -29,7 +29,7 @@ use_SP         = False     #Use Satellite phenolgy mode (doesn't yet work with F
 use_fates      = False     #Use FATES compsets
 fates_nutrient = True      #Use FATES nutrient (parteh_mode = 2)
 
-nyears_ad      =   40      #number of years for ad spinup
+nyears_ad      =   40     #number of years for ad spinup
 nyears_final   =   40      #number of years for final spinup OR for SP run
 nyears_trans   =   40      #number of years for transient run 
                            #  If -1, the final year will be the last year of forcing data.
@@ -48,13 +48,13 @@ case_options={}
 
 #--------------------ensemble options------------------------------------------------
 
-parm_list      = '' #'parm_list_fatesUQ' #'parm_list_example' #'parm_list_FATES'    #Set parameter list (leave blank for no ensemble)
+parm_list      = 'parm_list_example' #'parm_list_fatesUQ' #'parm_list_example' #'parm_list_FATES'    #Set parameter list (leave blank for no ensemble)
 nsamples       =  12    #number of samples to run
 np_ensemble    =   6    #number of ensemble numbers to run in parallel (MUST be <= nsamples)
 ensemble_file  = ''     #File containing samples (if blank, OLMT will generate one)
 postproc_vars  = ['FPSN','EFLX_LH_TOT']  #Variables to automatically post-process
-postproc_startyear =  91
-postproc_endyear   = 100
+postproc_startyear = 1880
+postproc_endyear   = 1889
 postproc_freq      = 'annual'   #Can be daily, monthly, annual
 
 #----------------------Define treatment cases ----------------------------------------
