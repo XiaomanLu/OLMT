@@ -19,7 +19,7 @@ modelroot = os.environ['HOME']+'/models/E3SM'  #Existing E3SM code directory
 exeroot = '/gpfs/wolf2/cades/cli185/scratch/zdr/e3sm_run/20240804_US-MOz_ICB1850CNRDCTCBC_ad_spinup/bld'
 
 #----------------------Required inputs---------------------------------------------
-sites = 'US-MMS'           #Site or list of sites (6-character FLUXNET ID) or 'all for all sites in group
+sites = 'all'           #Site or list of sites (6-character FLUXNET ID) or 'all for all sites in group
 sitegroup = 'AmeriFlux'    #Sites defined in <inputdata>/lnd/clm2/PTCLM/<sitegroup>_sitedata.txt
 mettype = 'gswp3'           #Site or reanalysis product
 case_suffix = ''           #Identifier for cases (leave blank if none)
@@ -77,14 +77,14 @@ siteinfo = get_site_info(inputdata, sitegroup=sitegroup)
 if not isinstance(sites,list):
     sites=[sites]
 if sites[0] == 'all':
-    sites = siteinfo.keys()
+    sites = list(siteinfo.keys())
     print('Running all sites in '+sitegroup+' site group:')
-    print(siteinfo['names'])
+    print(sites)
 else:
     for s in sites:
         if not (s in siteinfo.keys()):
             print(s+' not in '+sitegroup+' site group. Exiting.')
-            print('Available sites: ',siteinfo['names'])
+            print('Available sites: ',siteinfo.keys())
             sys.exit(1)
     print('Running site(s): ', sites)
 

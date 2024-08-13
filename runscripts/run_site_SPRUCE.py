@@ -88,14 +88,14 @@ siteinfo = get_site_info(inputdata, sitegroup=sitegroup)
 if not isinstance(sites,list):
     sites=[sites]
 if sites[0] == 'all':
-    sites = siteinfo.keys()
+    sites = list(siteinfo.keys())
     print('Running all sites in '+sitegroup+' site group:')
-    print(siteinfo['names'])
+    print(sites)
 else:
     for s in sites:
         if not (s in siteinfo.keys()):
             print(s+' not in '+sitegroup+' site group. Exiting.')
-            print('Available sites: ',siteinfo['names'])
+            print('Available sites: ',siteinfo.keys())
             sys.exit(1)
     print('Running site(s): ', sites)
 
