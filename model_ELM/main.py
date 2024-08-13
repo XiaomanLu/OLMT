@@ -65,6 +65,7 @@ class ELMcase():
         self.case_suffix=suffix   #used for ad_spinup and trans
         #Custom surface/domain info
         self.surffile = ''
+        self.use1kmsurf = False
         self.pftdynfile = ''
         self.paramfile = ''
         self.fates_paramfile = ''
@@ -296,16 +297,23 @@ class ELMcase():
         self.dobuild = True
         self.exeroot = self.runroot+'/'+self.casename+'/bld'
 
-  def setup_domain_surfdata(self,makedomain=False,makesurfdat=False,makepftdyn=False, \
-          surffile='',domainfile='',pftdynfile=''):
+  def setup_domain_surfdata(self,makedomain=False,makesurfdat=False,makepftdyn=False):
      #------Make domain, surface data and pftdyn files ------------------
     os.chdir(self.OLMTdir)
     mysimyr=1850
-
-    if (surffile == '' and makesurfdat):
-      self.makepointdata(self.surfdata_global)
+    surffile=''
+    domainfile=''
+    pftdynfile=''
+    if ('domainfile' in self.case_options.keys()):
+        domainfile = self.case_options['domainfile']
+    if ('surffile' in self.case_options.keys()):
+        surffile = self.case_options['surffile']
+    if ('pftdynfile' in self.case_options.keys()):
+        pftdynfile = self.case_options['pftdynfile']
     if (domainfile == '' and makedomain):
       self.makepointdata(self.domain_global)
+    if (surffile == '' and makesurfdat):
+      self.makepointdata(self.surfdata_global)
     if (pftdynfile == '' and makepftdyn and not (self.nopftdyn)):
       self.makepointdata(self.pftdyn_global)
     if (domainfile != ''):
@@ -477,10 +485,10 @@ class ELMcase():
     self.set_CNP_param_file()
     #get the default surface and domain files (to pass to makepointdata)
     #Note:  This requires setting a supported resolution
-    self.surfdata_global = self.get_namelist_variable('fsurdat')
-    self.domain_global   = self.get_namelist_variable('fatmlndfrc')
+    self.surfdata_global = self.get_namelist_variable('fsurdat')[2:-1]
+    self.domain_global   = self.get_namelist_variable('fatmlndfrc')[2:-1]
     if ('20TR' in self.casename):
-        self.pftdyn_global = self.get_namelist_variable('flanduse_timeseries')
+        self.pftdyn_global = self.get_namelist_variable('flanduse_timeseries')[2:-1]
     #Set custom surface data information
     surffile=''
     domainfile=''
@@ -525,11 +533,14 @@ class ELMcase():
         self.customize_namelist(variable='co2_file', value="'"+self.inputdata_path+"/atm/datm7/CO2/fco2_datm_rcp4.5_1765-2500_c130312.nc'")
         self.customize_namelist(variable='aero_file', value="'"+self.inputdata_path+"/atm/cam/chem/" \
                 +"trop_mozart_aero/aero/aerosoldep_rcp4.5_monthly_1849-2104_1.9x2.5_c100402.nc'")
-    keys_exclude = ['surffile','domainfile','pftdynfile','paramfile','fates_paramfile']
+    keys_exclude = ['suffix','surffile','domainfile','pftdynfile','paramfile','fates_paramfile','humhol','metdir']
     #Custom namelist options
     for key in self.case_options.keys():
-        if (not key in keys_exclude):
+        if (not key in keys_exclude and not 'restart_' in key):
             self.customize_namelist(variable=key,value=str(self.case_options[key]))
+        elif ('humhol' in key):
+            self.humhol=True
+
     #set domain file information
     if (domainfile == ''):
       self.xmlchange('ATM_DOMAIN_PATH',value='"\${RUNDIR}"')
@@ -619,12 +630,12 @@ class ELMcase():
       #Copy customized parameter, surface and domain files to run directory
       os.system('mkdir -p temp')
       os.system('cp '+self.OLMTdir+'/temp/*param*.nc '+self.rundir)
-      if (self.domainfile == ''):
+      if (not 'domainfile' in self.case_options.keys()):
          os.system('cp '+self.OLMTdir+'/temp/domain.nc '+self.rundir)
-      if (self.surffile == ''):
+      if (not 'surffile' in self.case_options.keys()):
          cmd = 'cp '+self.OLMTdir+'/temp/surfdata.nc '+self.rundir
          execute = subprocess.call(cmd, shell=True)
-      if ('20TR' in self.compset and self.pftdynfile =='' and not(self.nopftdyn)):
+      if (not 'pftdynfile' in self.case_options.keys() and '20TR' in self.compset and not(self.nopftdyn)):
          os.system('cp '+self.OLMTdir+'/temp/surfdata.pftdyn.nc '+self.rundir)
 
   def modify_datm_streamfiles(self):

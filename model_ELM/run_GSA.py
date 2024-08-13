@@ -51,7 +51,7 @@ def plot_GSA(self, myvars):
        ax.bar(x_pos, self.sens_main[v][p,:], bottom=bottom)
        bottom=bottom+self.sens_main[v][p,:]
       plt.legend(self.ensemble_parms)
-      plt.savefig('sens_main_'+v+'.pdf')
+      plt.savefig('sens_main_'+v+'.png')
       #
       #Total sensitivity indices
       fig,ax = plt.subplots()

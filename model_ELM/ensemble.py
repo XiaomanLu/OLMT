@@ -55,7 +55,7 @@ def create_ensemble_script(self, walltime=6):
             ldpath = s.split('=')[1].strip()
     softenv.close()
     self.npernode=int(self.xmlquery('MAX_TASKS_PER_NODE'))
-    nnodes = int(np.ceil(self.np_ensemble/self.npernode))
+    nnodes = int(np.ceil((self.np_ensemble*self.np)/self.npernode))
     myfile = open('case.submit_ensemble','w')
     myfile.write('#!/bin/bash -e\n\n')
     if (self.queue == 'debug'):
@@ -87,8 +87,7 @@ def create_multisite_script(self,sites,scriptdir, walltime=6):
     softenv.close()
     self.npernode=int(self.xmlquery('MAX_TASKS_PER_NODE'))
     nnodes = int(np.ceil(len(sites)/self.npernode))
-    os.system('mkdir -p '+scriptdir+'/multisite')
-    fname = scriptdir+'/multisite/'+self.casename.replace('_'+self.site,'')+'.sh'
+    fname = self.casename.replace('_'+self.site,'')+'.sh'
     myfile = open(fname,'w')
     myfile.write('#!/bin/bash -e\n\n')
     if (self.queue == 'debug'):
@@ -106,6 +105,20 @@ def create_multisite_script(self,sites,scriptdir, walltime=6):
       myfile.write('./preview_namelists\n')
       myfile.write('cd '+self.runroot+'/'+self.casename.replace(sites[0],s)+'/run\n')
       myfile.write('mkdir -p timing/checkpoints\n')
+      #restart file options
+      for key in self.case_options.keys():
+        if ('restart_' in key):
+            var   = key[8:]
+            value = str(self.case_options[key])
+            if ('*' in value or '+' in value):
+                operator=value[0]
+                value=value[1:]
+                myfile.write('python '+self.OLMTdir+'/modify_netcdf.py --filename '+ \
+                    self.finidat+' --var '+var+' --val '+value+ \
+                    ' --operator "'+operator+'"\n')
+            else:
+                myfile.write('python '+self.OLMTdir+'/modify_netcdf.py --filename '+ \
+                    self.finidat+' --var '+var+' --val '+value+'\n')
       if (self.noslurm):
         myfile.write(self.exeroot+'/e3sm.exe &\n\n')
       else:
@@ -193,6 +206,17 @@ def ensemble_copy(self, ens_num):
                 #            self.dependcase)
                 #os.system('cp '+finidat_file_orig+' '+finidat_file_new)
                 myoutput.write(" finidat = '"+finidat_file_new+"'\n")
+                #Make any requested restart modifications
+                for key in self.case_options.keys():
+                    if ('restart_' in key):
+                        var   = key[8:]
+                        value = self.case_options[key]
+                        ncval = self.getncvar(finidat_file_new, var)
+                        if ('*' in value):
+                            value = value*ncval
+                        if ('+' in value):
+                            value = value+ncval
+                        self.putncvar(finidat_file_new, var, value)
             elif ('logfile =' in s):
                 #Get the current date and time
                 now = datetime.datetime.now()

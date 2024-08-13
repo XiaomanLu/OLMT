@@ -9,8 +9,8 @@ def get_fluxnet_obs(self, site='US-UMB',tstep='monthly',ystart=-1,yend=9999,flux
   myobsfiles = os.listdir(myobsdir+'/'+tstep+'/')
 
   vars_elm     = ['NEE',                 'FPSN',           'GPP',           'ER',              'EFLX_LH_TOT','FSH',      'TBOT',    'FSDS',      'WS',  'RAIN', 'VPD']
-  vars_fluxnet = ['NEE_CUT_REF',         'GPP_NT_CUT_REF', 'GPP_NT_CUT_REF','RECO_NET_CUT_REF','LE_F_MDS',   'H_F_MDS',  'TA_F_MDS','SW_IN_F_MDS','WS_F','P_F', 'VPD_F_MDS']
-  vars_unc     = ['NEE_CUT_REF_JOINTUNC','GPP_NT_CUT_SE',  'GPP_NT_CUT_SE', 'RECO_NET_CUT_SE', 'LE_RANDUNC', 'H_RANDUNC','NA',      'NA',        'NA',  'NA', 'NA']
+  vars_fluxnet = ['NEE_CUT_REF',         'GPP_NT_CUT_REF', 'GPP_NT_CUT_REF','RECO_NT_CUT_REF','LE_F_MDS',   'H_F_MDS',  'TA_F_MDS','SW_IN_F_MDS','WS_F','P_F', 'VPD_F_MDS']
+  vars_unc     = ['NEE_CUT_REF_JOINTUNC','GPP_NT_CUT_SE',  'GPP_NT_CUT_SE', 'RECO_NT_CUT_SE', 'LE_RANDUNC', 'H_RANDUNC','NA',      'NA',        'NA',  'NA', 'NA']
   vars_qc      = ['NEE_CUT_REF_QC',      'NEE_CUT_REF_QC', 'NEE_CUT_REF_QC','NEE_CUT_REF_QC',  'LE_F_MDS_QC', 'H_F_MDS_QC','TA_F_MDS_QC','SW_IN_F_MDS_QC','WS_F_QC','P_F_QC','VPD_F_MDS_QC']
 
   ndaysm = [31,28,31,30,31,30,31,31,30,31,30,31]

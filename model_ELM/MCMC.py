@@ -32,6 +32,7 @@ def calc_posterior(self,parms,myvars):
                 li = -1.0 * np.log(2.0*np.pi)/2.0 - \
                      np.log(myerr[n]) - ri/2.0
                 post = post + li
+                #print(v,n,myoutput[n],myobs[n],post)
     else:
         post = -9999999
         output={}

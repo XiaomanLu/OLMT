@@ -56,7 +56,7 @@ def get_node_submit(pactive,process_nodes,mynodes):
          for p in range(0,len(processes)):
                 if pactive[p] == 1 and process_nodes[p] == n:
                     ctn=ctn+1
-         if (ctn < mycase.npernode):
+         if (ctn < mycase.npernode/mycase.np):
              #If this node is not full, submit
              node_submit=n
     return(node_submit)
@@ -141,7 +141,7 @@ while (n_job <= mycase.nsamples):
     with open(log_file_path, "w") as log_file:
        if (mycase.noslurm == False):
          node_submit=get_node_submit(pactive,process_nodes,mynodes)
-         command = ['srun -n 1 -c 1 -w '+mynodes[node_submit]+' '+mycase.exeroot+'/e3sm.exe']
+         command = ['srun -n '+str(mycase.np)+' -c 1 -w '+mynodes[node_submit]+' '+mycase.exeroot+'/e3sm.exe']
          process_nodes.append(node_submit)
        else:
          command = [mycase.exeroot+'/e3sm.exe']

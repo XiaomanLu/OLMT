@@ -14,12 +14,15 @@ def getncvar(self, fname, varname):
     nffile.close()
     return varvals
 
-def putncvar(self, fname, varname, varvals, addvar=False):
+def putncvar(self, fname, varname, varvals, operator='', addvar=False):
     from netCDF4 import Dataset
     import numpy as np
     nffile = Dataset(fname,"a")
     if (varname in nffile.variables):
-      nffile.variables[varname][...] = varvals
+      if (operator == '*'):
+        nffile.variables[varname][...] = nffile.variables[varname][...]*varvals
+      else:
+        nffile.variables[varname][...] = varvals
       ierr = 0
     else:
       if (addvar):

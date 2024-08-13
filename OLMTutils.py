@@ -1,5 +1,6 @@
 import socket, os, sys
 import subprocess
+import numpy as np
 
 #Function to return default directories for supported machines
 def get_machine_info(machine_name=''):
@@ -31,12 +32,42 @@ def get_machine_info(machine_name=''):
 def get_site_info(inputdata, sitegroup='AmeriFlux'):
     sitegroup_file = open(inputdata+'/lnd/clm2/PTCLM/'+sitegroup+'_sitedata.txt')
     siteinfo={}
-    siteinfo['names'] = []
     snum=0
     for s in sitegroup_file:
         if snum > 0:
-          siteinfo['names'].append(s.split(',')[0])
+          sitename = s.split(',')[0]
+          siteinfo[sitename]={}
+          siteinfo[sitename]['lon'] = float(s.split(',')[3])
+          siteinfo[sitename]['lat'] = float(s.split(',')[4])
+          siteinfo[sitename]['PCT_NAT_PFT'] = np.zeros([17],float)
+          siteinfo[sitename]['PCT_SAND']=-999
+          siteinfo[sitename]['PCT_CLAY']=-999
         snum=snum+1
+    sitegroup_file.close()
+    sitegroup_pftfile = open(inputdata+'/lnd/clm2/PTCLM/'+sitegroup+'_pftdata.txt')
+    snum = 0
+    #PFTs.  TODO - allow crop PFTs
+    for s in sitegroup_pftfile:
+        if (snum > 0):
+            sitename = s.split(',')[0]
+            for p in range(0,5):
+                pindex = int(s[:-1].split(',')[p*2+2])
+                ppct   = float(s[:-1].split(',')[p*2+1])
+                if (ppct > 0):
+                    siteinfo[sitename]['PCT_NAT_PFT'][pindex] = ppct
+        snum = snum+1
+    sitegroup_pftfile.close()
+    #Soil texture
+    sitegroup_soilfile = open(inputdata+'/lnd/clm2/PTCLM/'+sitegroup+'_soildata.txt')
+    snum = 0
+    for s in sitegroup_soilfile:
+        if (snum > 0):
+            sitename = s[:-1].split(',')[0]
+            siteinfo[sitename]['PCT_SAND'] = float(s[:-1].split(',')[4])
+            siteinfo[sitename]['PCT_CLAY'] = float(s[:-1].split(',')[5])
+        snum=snum+1
+    sitegroup_soilfile.close()
     return siteinfo
-
+ 
 #TODO:  Function to return met data path for various options
+

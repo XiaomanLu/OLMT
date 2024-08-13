@@ -13,15 +13,15 @@ machine, rootdir, inputdata = get_machine_info(machine_name='')
 caseroot= rootdir+'/e3sm_cases'
 runroot = rootdir+'/e3sm_run'
 #TODO:  add option to clone repository
-modelroot = os.environ['HOME']+'/models/E3SM'  #Existing E3SM code directory
+modelroot = os.environ['HOME']+'/models/E3SM-Peatlands'  #Existing E3SM code directory
 
 #We are going to use a pre-built executable. Set exeroot='' to build 
-exeroot = '/gpfs/wolf2/cades/cli185/scratch/zdr/e3sm_run/20240804_US-MOz_ICB1850CNRDCTCBC_ad_spinup/bld'
-
+exeroot = '/gpfs/wolf2/cades/cli185/scratch/zdr/e3sm_run/20240812_US-SPR_ICB1850CNRDCTCBC_ad_spinup/bld'
+#exeroot = ''
 #----------------------Required inputs---------------------------------------------
-sites = 'US-MMS'           #Site or list of sites (6-character FLUXNET ID) or 'all for all sites in group
+sites = 'US-SPR'           #Site or list of sites (6-character FLUXNET ID) or 'all for all sites in group
 sitegroup = 'AmeriFlux'    #Sites defined in <inputdata>/lnd/clm2/PTCLM/<sitegroup>_sitedata.txt
-mettype = 'gswp3'           #Site or reanalysis product
+mettype = 'site'           #Site or reanalysis product
 case_suffix = ''           #Identifier for cases (leave blank if none)
 
 use_cpl_bypass = True     #Coupler bypass for meteorology
@@ -31,24 +31,26 @@ fates_nutrient = True      #Use FATES nutrient (parteh_mode = 2)
 
 nyears_ad      =  240     #number of years for ad spinup
 nyears_final   =  100      #number of years for final spinup OR for SP run
-nyears_trans   =   80      #number of years for transient run 
+nyears_trans   =  165      #number of years for transient run 
                            #  If -1, the final year will be the last year of forcing data.
 run_startyear  = 1850      #Starting year for transient run OR for SP run
 
 
 #---------------------Optional inputs via namelist variables------------------------
 #Define a dictionary to handle namelist options.
-#note:  use surffile, domainfile, pftdynfile, metdir instead of the standard namelist variables for those files.
+#note:  set  'surffile', 'domainfile', 'pftdynfile', 'metdir' instead of the standard namelist variables for those files.
+#note:  Also set options here that use CPPDEFS (e.g. marsh, humhol)
 #case_options['option'] = value or [value1, value2, value3] if applying different options to different compsets
 case_options={} 
-#case_options['fates_paramfile'] = inputdata+'/lnd/clm2/paramdata/fates_params_api.32.0.0_pft1_c231215.nc'
-#case_options['hist_mfilt']  = '365,365'
-#case_options['hist_nhtfrq'] = '-24,-24'
-
+case_options['humhol'] = True
+case_options['metdir'] = inputdata+'/SPRUCE_data/'
+case_options['pftdynfile'] = inputdata+'/SPRUCE_data/pftdyn/surfdata.pftdyn_plot07.nc'
+case_options['paramfile'] = '/ccsopen/home/zdr/models/OLMT/clm_params_SPRUCE_20231120_spruceroot.nc'
+case_options['use_nofire'] = '.true.'
 
 #--------------------ensemble options------------------------------------------------
 
-parm_list      = '' #'parm_list_test_bgc' #'parm_list_fatesUQ' #'parm_list_example' #'parm_list_FATES'    #Set parameter list (leave blank for no ensemble)
+parm_list      = ''    #Set parameter list (leave blank for no ensemble)
 nsamples       =  1000    #number of samples to run
 np_ensemble    =  384    #number of ensemble numbers to run in parallel (MUST be <= nsamples)
 ensemble_file  = ''     #File containing samples (if blank, OLMT will generate one)
@@ -59,18 +61,27 @@ postproc_freq      = 'monthly'   #Can be daily, monthly, annual
 
 #----------------------Define treatment cases ----------------------------------------
 #
-#Treatmeant cases will use the same compset as the last case, and will inherit case_options
+#Treatment cases will use the same compset as the last case, and will inherit case_options unless overwritten
 #Specify additional options for treatments as a list (one for each desired treatment)
-nyears_treatment   = 85                              #number of years to run treatment simulation (assumed all same)
+nyears_treatment   = 7                               #number of years to run treatment simulation (assumed all same)
 startyear_treatment = run_startyear + nyears_trans   #Starting year (assuming to start from end of transient
 treatment_options={}
-treatment_options['suffix']        = ['reseed']      #List of suffixes for different treatments (required)
-treatment_options['restart_leafc_storage'] = [10.]           #Restart file manipulation (experimental)
-treatment_options['restart_soil4c_vr'] = ['*0.5']
-treatment_options['restart_soil4n_vr'] = ['*0.5']
-treatment_options['restart_soil4p_vr'] = ['*0.5']
+#Treatment cases
+treatments=['TAMB','T0.00','T2.25','T4.50','T6.75','T9.00','T0.00eCO2','T2.25eCO2', \
+        'T4.50eCO2','T6.75eCO2','T9.00eCO2']
+plots=[7,6,20,13,8,17,19,11,4,16,10]  #Plot numbers corresponding to each treatment
+#Add Treatment cases
+treatment_options['suffix'] = treatments
+treatment_options['metdir'] = []
+treatment_options['pftdynfile']=[]
+for p in range(0,len(plots)):
+    plotstr = str(100+plots[p])[1:]
+    treatment_options['metdir'].append(case_options['metdir']+'/plot'+plotstr)  #Each case has its own met data directory
+    #Each case has its own dynamic PFT file
+    treatment_options['pftdynfile'].append(inputdata+'/SPRUCE_data/pftdyn/surfdata.pftdyn_plot'+plotstr+'.nc')
 
 #---------------End of user input -----------------------------------------------------
+
 
 #Check to see if all reqested sites exist
 siteinfo = get_site_info(inputdata, sitegroup=sitegroup)
@@ -196,7 +207,6 @@ for site in sites:
     cases[c].create_case()
     cases[c].case_options={}
     cases[c].siteinfo = siteinfo[site]
-
     #Get the namelist options for this case
     for key in case_options.keys():
         if isinstance(case_options[key], list):

@@ -12,13 +12,10 @@ from sklearn import preprocessing
 from sklearn.model_selection import train_test_split, GridSearchCV
 
 def train_surrogate(self,myvars):
+ self.qoi_bad={}
+ self.qoi_bad_meanval={}
  for var in myvars:
-  pfts=[0]
-  vname=var
-  if ('_pft' in var):
-      pfts=mycase.postproc_pfts
-      vname = var+str(pft)
-  for pft in pfts:
+    vname=var
     nparms = self.nparms_ensemble
     nqoi   = self.output[vname].shape[0]
 
@@ -30,6 +27,13 @@ def train_surrogate(self,myvars):
     valid_indices = np.where(y[:, 1].squeeze() > -9999)[0]
     y = y[valid_indices, :].copy()
     p = p[valid_indices, :].copy()
+
+    self.qoi_bad[vname] = []
+    self.qoi_bad_meanval[vname] = []
+    for q in range(0,nqoi):
+        if (max(y[valid_indices,q]) == min(y[valid_indices,q])):
+            self.qoi_bad[vname].append(q)
+            self.qoi_bad_meanval[vname].append(min(y[valid_indices,q]))
 
     # Split data into training and validation sets
     ptrain, pval, ytrain, yval = train_test_split(p, y, test_size=0.2, random_state=42)
@@ -74,6 +78,7 @@ def run_surrogate(self,parms,myvars):
   for var in myvars:
     parms_norm = self.pscaler[var].transform(parms)
     surrogate_output[var] = self.yscaler[var].inverse_transform(self.surrogate[var].predict(parms_norm))
+    surrogate_output[var][:,self.qoi_bad[var]] = self.qoi_bad_meanval[var]
   return surrogate_output
 
 
