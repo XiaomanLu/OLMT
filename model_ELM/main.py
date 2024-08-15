@@ -16,7 +16,7 @@ class ELMcase():
             res='',tstep=1,np=1,nyears=1,startyear=-1, machine='', \
             exeroot='', modelroot='', runroot='',caseroot='',inputdata='', \
             region_name='', lat_bounds=[-90,90],lon_bounds=[-180,180], \
-            namelist_options=[],casename=''):
+            point_list=[], namelist_options=[],casename=''):
 
       if (casename != ''):
         #get case information from pre-existing pkl file:
@@ -44,11 +44,12 @@ class ELMcase():
               self.res='ELM_USRDAT'
         else:
           self.res=res
+        self.point_list = point_list
         self.region = 'region'
         if (region_name != ''):
           self.region = region_name
-        self.lat_bounds=lat_bounds
-        self.lon_bounds=lon_bounds
+        self.lat_bounds=numpy.array(lat_bounds)
+        self.lon_bounds=numpy.array(lon_bounds)
         self.sitegroup=sitegroup
         #Set the default case id prefix to the current date
         if (caseid == ''):
@@ -356,6 +357,8 @@ class ELMcase():
             self.met_startyear = 1948
         if ('era5' in self.forcing):
             self.met_endyear=2023
+        if ('crujra' in self.forcing):
+            self.met_endyear=2022
         #Assume we want a 20-year spinup cycle
         self.met_endyear_spinup = self.met_startyear+20-1
     self.nyears_spinup=self.met_endyear_spinup-self.met_startyear+1
@@ -485,10 +488,19 @@ class ELMcase():
     self.set_CNP_param_file()
     #get the default surface and domain files (to pass to makepointdata)
     #Note:  This requires setting a supported resolution
-    self.surfdata_global = self.get_namelist_variable('fsurdat')[2:-1]
-    self.domain_global   = self.get_namelist_variable('fatmlndfrc')[2:-1]
+    if ('surfdata_global' in self.case_options.keys()):
+        self.surfdata_global = self.case_options['surfdata_global']
+    else:
+        self.surfdata_global = self.get_namelist_variable('fsurdat')[2:-1]
+    if ('domain_global' in self.case_options.keys()):
+        self.domain_global = self.case_options['domain_global']
+    else:
+        self.domain_global   = self.get_namelist_variable('fatmlndfrc')[2:-1]
     if ('20TR' in self.casename):
-        self.pftdyn_global = self.get_namelist_variable('flanduse_timeseries')[2:-1]
+        if ('pftdyn_global' in self.case_options.keys()):
+            self.pftdyn_global = self.case_options['pftdyn_global']
+        else:
+            self.pftdyn_global = self.get_namelist_variable('flanduse_timeseries')[2:-1]
     #Set custom surface data information
     surffile=''
     domainfile=''
@@ -533,7 +545,9 @@ class ELMcase():
         self.customize_namelist(variable='co2_file', value="'"+self.inputdata_path+"/atm/datm7/CO2/fco2_datm_rcp4.5_1765-2500_c130312.nc'")
         self.customize_namelist(variable='aero_file', value="'"+self.inputdata_path+"/atm/cam/chem/" \
                 +"trop_mozart_aero/aero/aerosoldep_rcp4.5_monthly_1849-2104_1.9x2.5_c100402.nc'")
-    keys_exclude = ['suffix','surffile','domainfile','pftdynfile','paramfile','fates_paramfile','humhol','metdir']
+    #Excluded keys in case_options that are not namelist options (handled elsewhere)
+    keys_exclude = ['suffix','surffile','domainfile','pftdynfile','paramfile','fates_paramfile','humhol','metdir', \
+            'surfdata_global','pftdyn_global','domain_global']
     #Custom namelist options
     for key in self.case_options.keys():
         if (not key in keys_exclude and not 'restart_' in key):

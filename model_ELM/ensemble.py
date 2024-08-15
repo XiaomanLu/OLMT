@@ -86,7 +86,10 @@ def create_multisite_script(self,sites,scriptdir, walltime=6):
             ldpath = s.split('=')[1].strip()
     softenv.close()
     self.npernode=int(self.xmlquery('MAX_TASKS_PER_NODE'))
-    nnodes = int(np.ceil(len(sites)/self.npernode))
+    if sites[0] != '':
+        nnodes = int(np.ceil(len(sites)/self.npernode))
+    else:
+        nnodes = int(np.ceil(self.np/self.npernode))
     fname = self.casename.replace('_'+self.site,'')+'.sh'
     myfile = open(fname,'w')
     myfile.write('#!/bin/bash -e\n\n')
@@ -122,7 +125,7 @@ def create_multisite_script(self,sites,scriptdir, walltime=6):
       if (self.noslurm):
         myfile.write(self.exeroot+'/e3sm.exe &\n\n')
       else:
-        myfile.write('srun -n 1 -c 1 '+self.exeroot+'/e3sm.exe &\n\n')
+        myfile.write('srun -n '+str(self.np)+' -c 1 '+self.exeroot+'/e3sm.exe &\n\n')
     myfile.write('wait\n')
     myfile.close()
     os.system('chmod u+x '+fname)

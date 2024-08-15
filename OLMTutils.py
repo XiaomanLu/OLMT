@@ -12,7 +12,7 @@ def get_machine_info(machine_name=''):
             machine_name = result.stdout
     if ('baseline' in machine_name):
         rootdir = '/gpfs/wolf2/cades/cli185/scratch/'+os.environ['USER']
-        inputdata = '/gpfs/wolf2/cades/cli185/proj-shared/zdr/inputdata'
+        inputdata = '/gpfs/wolf2/cades/cli185/world-shared/e3sm/inputdata/'
         machine = 'cades-baseline'
     elif  ('chrlogin' in machine_name or 'chrysalis' in machine_name):
         rootdir = '/lcrc/group/e3sm/'+os.environ['USER']+'/scratch'
@@ -68,6 +68,26 @@ def get_site_info(inputdata, sitegroup='AmeriFlux'):
         snum=snum+1
     sitegroup_soilfile.close()
     return siteinfo
- 
+
+def get_point_list(fname):
+    myfile = open(fname, 'r')
+    snum=0
+    points=[]
+    for s in myfile:
+        if snum == 0:
+            header=s.split(',')
+            hnum=0
+            for h in header:
+                if ('lat' in h):
+                    latcol=hnum
+                if ('lon' in h):
+                    loncol=hnum
+                hnum=hnum+1
+        else:
+            points.append((float(s.split(',')[latcol]), \
+                float(s.split(',')[loncol])))
+        snum=snum+1
+    return points
 #TODO:  Function to return met data path for various options
+
 

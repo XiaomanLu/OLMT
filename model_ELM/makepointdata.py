@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#o!/usr/bin/env python
 import re, os, sys, csv, time, math
 import numpy as np
 from netCDF4 import Dataset
@@ -137,8 +137,8 @@ def makepointdata(self, filename, mylat=[], mylon=[]):
             mylon = np.array([self.siteinfo['lon']])
         index = self.get_pointindices_list(mylat, mylon, mydata[latvar][:], mydata[lonvar][:], mask_grid=self.mask_grid) 
         self.subset_netcdf(index, infile,  outfile)
+        ds = xr.open_dataset(outfile, mode='r+')
         if (not isdomain):
-            ds = xr.open_dataset(outfile, mode='r+')
             #Set the site PFT and soil texture
             if (sum(self.siteinfo['PCT_NAT_PFT']) > 0):
                 print('Setting PFT_NAT_PFT to: ', self.siteinfo['PCT_NAT_PFT'])
@@ -158,8 +158,39 @@ def makepointdata(self, filename, mylat=[], mylon=[]):
                     if (self.siteinfo['PCT_CLAY'] >= 0):
                         ds['PCT_CLAY'][:] = self.siteinfo['PCT_CLAY']
                         print('Setting $CLAY to ',self.siteinfo['PCT_CLAY'])
-                #else:  TODO - handle transitions
-            ds.to_netcdf(outfile+'.tmp')
-            ds.close()
-            os.system('mv '+outfile+'.tmp '+outfile)
-    #elif (self.point_list != ''):
+                #else:  TODO - handle land use transitions
+        else:
+            for p in range(0,len(mylat)):
+                #Recenter on gridcell lat/lons
+                ds['xv'][:,p] = ds['xv'][:,p] + (mylon - ds['xc'][:])
+                ds['yv'][:,p] = ds['yv'][:,p] + (mylat - ds['yc'][:])
+        ds[latvar][:] = mylat
+        ds[lonvar][:] = mylon
+        ds.to_netcdf(outfile+'.tmp')
+        ds.close()
+        os.system('mv '+outfile+'.tmp '+outfile)
+    elif (len(self.point_list) > 0):
+        point_lats = np.array([lat for lat, lon in self.point_list])
+        point_lons = np.array([lon for lat, lon in self.point_list])
+        index = self.get_pointindices_list(point_lats, point_lons, mydata[latvar][:], \
+                mydata[lonvar][:], mask_grid=self.mask_grid)
+        self.subset_netcdf(index, infile,  outfile)
+        ds = xr.open_dataset(outfile, mode='r+')
+        #if (isdomain):
+        #    for p in range(0,len(mylat)):
+        #        #Recenter on gridcell lat/lons
+        #        ds['xv'][:,p] = ds['xv'][:,p] + (mylon - ds['xc'][:])
+        #        ds['yv'][:,p] = ds['yv'][:,p] + (mylat - ds['yc'][:])
+        ds[latvar][:] = point_lats
+        ds[lonvar][:] = point_lons
+        ds.to_netcdf(outfile+'.tmp')
+        ds.close()
+        os.system('mv '+outfile+'.tmp '+outfile)
+    else:  #USe lat lon bounding box
+        if (self.lat_bounds[1]-self.lat_bounds[0] < 180 and self.lon_bounds[1]-self.lon_bounds[0] < 360):
+            index = self.get_pointindices_bbox(self.lat_bounds, self.lon_bounds, mydata[latvar][:], mydata[lonvar][:], \
+                mask_grid=self.mask_grid)
+            self.subset_netcdf(index, infile,  outfile)
+        else:
+            print('Global simulation requested.  Using original file.')
+            os.system('cp '+infile+' '+outfile)
