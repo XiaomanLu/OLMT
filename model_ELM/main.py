@@ -267,7 +267,7 @@ class ELMcase():
          sys.exit(1)    
     print("CASE directory is: "+self.casedir)
     #create the case
-    walltime=2
+    walltime=24
     timestr=str(int(float(walltime)))+':'+str(int((float(walltime)- \
                                      int(float(walltime)))*60))+':00'
     #IF the resolution is user defined (site), we will first create a case with 
