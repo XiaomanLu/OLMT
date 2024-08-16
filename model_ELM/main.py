@@ -542,7 +542,9 @@ class ELMcase():
         #if using coupler bypass, need to add the following
         self.customize_namelist(variable='metdata_type',value="'"+self.forcing+"'")
         self.customize_namelist(variable='metdata_bypass',value="'"+self.metdir+"'")
-        self.customize_namelist(variable='co2_file', value="'"+self.inputdata_path+"/atm/datm7/CO2/fco2_datm_rcp4.5_1765-2500_c130312.nc'")
+        if (not 'co2_file' in self.case_options):
+            self.customize_namelist(variable='co2_file', value="'"+self.inputdata_path+ \
+                    "/atm/datm7/CO2/fco2_datm_rcp4.5_1765-2500_c130312.nc'")
         self.customize_namelist(variable='aero_file', value="'"+self.inputdata_path+"/atm/cam/chem/" \
                 +"trop_mozart_aero/aero/aerosoldep_rcp4.5_monthly_1849-2104_1.9x2.5_c100402.nc'")
     #Excluded keys in case_options that are not namelist options (handled elsewhere)
@@ -718,7 +720,10 @@ class ELMcase():
           myoutput = open('./user_datm.streams.txt.co2tseries.20tr','w')
           for s in myinput:
               if ('.nc' in s):
-                  myoutput.write("      fco2_datm_rcp4.5_1765-2500_c130312.nc\n")
+                  if (not 'co2_file' in self.case_options):
+                    myoutput.write("      fco2_datm_rcp4.5_1765-2500_c130312.nc\n")
+                  else:
+                    myoutput.write("      "+self.case_options['co2_file']+'\n')
               else:
                   myoutput.write(s)
           myinput.close()

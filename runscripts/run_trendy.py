@@ -13,40 +13,36 @@ machine, rootdir, inputdata = get_machine_info(machine_name='')
 caseroot= rootdir+'/e3sm_cases'
 runroot = rootdir+'/e3sm_run'
 #TODO:  add option to clone repository
-modelroot = os.environ['HOME']+'/models/E3SM'  #Existing E3SM code directory
+modelroot = '/ccsopen/home/zdr/models/E3SM_TRENDY'  #Existing E3SM code directory
 
 #We are going to use a pre-built executable. Set exeroot='' to build 
-exeroot = '/gpfs/wolf2/cades/cli185/scratch/zdr/e3sm_run/20240804_US-MOz_ICB1850CNRDCTCBC_ad_spinup/bld'
+exeroot = '/gpfs/wolf2/cades/cli185/scratch/zdr/e3sm_run/20240815_region_ICB1850CNRDCTCBC_ad_spinup/bld'
 
 #----------------------Required inputs---------------------------------------------
 
 runtype = 'latlon_bbox'        #site,latlon_list,latlon_bbox
-mettype = 'gswp3'              #Site or reanalysis product to use (site, gswp3, crujra)
+mettype = 'crujra'             #Site or reanalysis product to use (site, gswp3, crujra)
 case_suffix = ''               #Identifier for cases (leave blank if none)
 
-if (runtype == 'site'):
-    sites = 'all'           #Site name, list of site names, or 'all' for all sites in site group
-    sitegroup = 'ERW'       #Sites defined in <inputdata>/lnd/clm2/PTCLM/<sitegroup>_sitedata.txt
-else:
-    region_name = 'region'  #Set the name of the region/point list to be simulated
-    numproc = 384            #Number of processors, must be <= the number of active gridcells
-    if (runtype == 'latlon_list'):
-        point_list_file = '/ccsopen/home/zdr/models/OLMT/point_lists/ERW_sitedata.txt'   #List of lat lons
-#If neither point_list or site is defined, it will use the bounds below.
+region_name = 'trendytest'     #Set the name of the region/point list to be simulated
+numproc = 1280                 #Number of processors, must be <= the number of active gridcells
+if (runtype == 'latlon_list'):
+    point_list_file = ''       #List of lat lons
+#If point_list or site is defined, it will use the bounds below (latlon_bbox option).
 lat_bounds = [-90,90]
 lon_bounds = [-180,180]
-res = 'f19_f19'          #Resolution of global files to extract from
+res = 'f09_f09'            #Resolution of global files to use/extract from
 
 use_cpl_bypass = True      #Coupler bypass for meteorology
-use_SP         = True     #Use Satellite phenolgy mode (doesn't yet work with FATES-SP)
+use_SP         = False     #Use Satellite phenolgy mode (doesn't yet work with FATES-SP)
 use_fates      = False     #Use FATES compsets
 fates_nutrient = True      #Use FATES nutrient (parteh_mode = 2)
 
-nyears_ad      =    0      #number of years for ad spinup
-nyears_final   =   35      #number of years for final spinup OR for SP run
-nyears_trans   =    0      #number of years for transient run 
+nyears_ad      =  250      #number of years for ad spinup
+nyears_final   =  400      #number of years for final spinup OR for SP run
+nyears_trans   =  174      #number of years for transient run 
                            #  If -1, the final year will be the last year of forcing data.
-run_startyear  = 1980      #Starting year for transient run OR for SP run
+run_startyear  = 1850      #Starting year for transient run OR for SP run
 
 
 #---------------------Optional inputs via namelist variables------------------------
@@ -54,34 +50,11 @@ run_startyear  = 1980      #Starting year for transient run OR for SP run
 #note:  use surffile, domainfile, pftdynfile, metdir instead of the standard namelist variables for those files.
 #case_options['option'] = value or [value1, value2, value3] if applying different options to different compsets
 case_options={} 
-#case_options['fates_paramfile'] = inputdata+'/lnd/clm2/paramdata/fates_params_api.32.0.0_pft1_c231215.nc'
-case_options['hist_mfilt']  = '1'
-case_options['hist_nhtfrq'] = '0'
-
-
-#--------------------ensemble options------------------------------------------------
-
-parm_list      = '' #'parm_list_test_bgc' #'parm_list_fatesUQ' #'parm_list_example' #'parm_list_FATES'    #Set parameter list (leave blank for no ensemble)
-nsamples       =  1000    #number of samples to run
-np_ensemble    =  384    #number of ensemble numbers to run in parallel (MUST be <= nsamples)
-ensemble_file  = ''     #File containing samples (if blank, OLMT will generate one)
-postproc_vars  = ['GPP','ER','NPP','NEE','TLAI','FSH','EFLX_LH_TOT']  #Variables to automatically post-process
-postproc_startyear = 2000
-postproc_endyear   = 2007
-postproc_freq      = 'monthly'   #Can be daily, monthly, annual
-
-#----------------------Define treatment cases ----------------------------------------
-#
-#Treatmeant cases will use the same compset as the last case, and will inherit case_options
-#Specify additional options for treatments as a list (one for each desired treatment)
-nyears_treatment   = 85                              #number of years to run treatment simulation (assumed all same)
-startyear_treatment = run_startyear + nyears_trans   #Starting year (assuming to start from end of transient
-treatment_options={}
-#treatment_options['suffix']        = ['reseed']      #List of suffixes for different treatments (required)
-#treatment_options['restart_leafc_storage'] = [10.]           #Restart file manipulation (experimental)
-#treatment_options['restart_soil4c_vr'] = ['*0.5']
-#treatment_options['restart_soil4n_vr'] = ['*0.5']
-#treatment_options['restart_soil4p_vr'] = ['*0.5']
+case_options['metdir'] = '/gpfs/wolf2/cades/cli185/world-shared/e3sm/inputdata/atm/datm7/atm_forcing.CRUJRA_trendy_2023/cpl_bypass_full' 
+#Add the customized files below
+#case_options['co2_file'] = ''
+#case_options['pftdynfile'] = ''
+#case_options['stream_fldfilename_ndep'] = ''
 
 #---------------End of user input -----------------------------------------------------
 
@@ -175,18 +148,6 @@ istreatment=np.zeros([len(compsets)],int)
 ncases_pretreatment = len(compsets)
 
 ensemble=False
-if (parm_list != ''):
-    ensemble=True
-
-#Add treatment cases
-if ('suffix' in treatment_options.keys()):
-  for t in range(0,len(treatment_options['suffix'])):
-    nyears.append(nyears_treatment)
-    istreatment = np.append(istreatment, 1)
-    depends = np.append(depends, ncases_pretreatment-1)
-    compsets.append(compsets[-1])
-    suffix.append(treatment_options['suffix'][t])
-    startyear.append(startyear_treatment)
 
 print('Machine: '+machine)
 print('Run root directory:  '+runroot)
@@ -206,9 +167,6 @@ for c in range(0,len(compsets)):
         print('   Treatment:                '+ \
                 treatment_options['suffix'][c-ncases_pretreatment])
     print('\n')
-if (ensemble):
-    print('Ensemble size:  '+str(nsamples))
-    print('Parameter list: '+parm_list+'\n')
 
 nsites = len(sites)
 jobnum = np.zeros(len(compsets),int)  #list of submitted job ids
@@ -224,7 +182,7 @@ for site in sites:
     cases[c] = model_ELM.ELMcase(caseid='',compset=compsets[c], site=site, \
         caseroot=caseroot,runroot=runroot,inputdata=inputdata,modelroot=modelroot, \
         machine=machine, exeroot=exeroot, suffix=mysuffix,  \
-        res=res, nyears=nyears[c],startyear=startyear[c], region_name=region_name \
+        res=res, nyears=nyears[c],startyear=startyear[c], region_name=region_name, \
         lat_bounds=lat_bounds, lon_bounds=lon_bounds, np=numproc, point_list=point_list)
 
     #Create the case

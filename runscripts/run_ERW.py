@@ -21,13 +21,13 @@ exeroot = '/gpfs/wolf2/cades/cli185/scratch/zdr/e3sm_run/20240813_region_ICB1850
 
 #----------------------Required inputs---------------------------------------------
 
-runtype = 'latlon_list'        #site,latlon_list,latlon_bbox 
+runtype = 'site'        #site,latlon_list,latlon_bbox 
 mettype = 'crujra'             #Site or reanalysis product to use (site, gswp3, crujra)
 case_suffix = ''               #Identifier for cases (leave blank if none)
 
 if (runtype == 'site'):
     sites = 'all'           #Site name, list of site names, or 'all' for all sites in site group
-    sitegroup = 'ERW'       #Sites defined in <inputdata>/lnd/clm2/PTCLM/<sitegroup>_sitedata.txt
+    sitegroup = 'Fluxnet2015'       #Sites defined in <inputdata>/lnd/clm2/PTCLM/<sitegroup>_sitedata.txt
 else:
     region_name = 'region'  #Set the name of the region/point list to be simulated
     numproc = 64            #Number of processors, must be <= the number of active gridcells
@@ -233,7 +233,7 @@ for site in sites:
     cases[c] = model_ELM.ELMcase(caseid='',compset=compsets[c], site=site, \
         caseroot=caseroot,runroot=runroot,inputdata=inputdata,modelroot=modelroot, \
         machine=machine, exeroot=exeroot, suffix=mysuffix,  \
-        res=res, nyears=nyears[c],startyear=startyear[c], \
+        res=res, nyears=nyears[c],startyear=startyear[c], region_name=region_name, \
         lat_bounds=lat_bounds, lon_bounds=lon_bounds, np=numproc, point_list=point_list)
 
     #Create the case
