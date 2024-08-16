@@ -792,11 +792,9 @@ class ELMcase():
                 stdout=log_file)
             jobnum=0
     else:
-        print(cmd)
         result = subprocess.run(cmd, stderr=subprocess.STDOUT, \
                 stdout=subprocess.PIPE, text=True)
         output = result.stdout.strip()
-        print(output)
         jobnum = int(output.split()[-1])
         print('\nSubmitted '+str(jobnum))
     os.chdir(self.OLMTdir)

@@ -165,10 +165,10 @@ def makepointdata(self, filename, mylat=[], mylon=[]):
         #        #Recenter on gridcell lat/lons
         #        ds['xv'][:,p,:] = ds['xv'][:,p,:] + (mylon[p] - ds['xc'][:,p])
         #        ds['yv'][:,p,:] = ds['yv'][:,p,:] + (mylat[p] - ds['yc'][:,p])
+        if (self.shift_lon):
+            mylon[mylon < 0] +=360
         ds[latvar][:] = mylat
         ds[lonvar][:] = mylon
-        if (self.shift_lon):
-            ds[lonvar][mylon < 0] += 360
         ds.to_netcdf(outfile+'.tmp')
         ds.close()
         os.system('mv '+outfile+'.tmp '+outfile)
@@ -185,10 +185,10 @@ def makepointdata(self, filename, mylat=[], mylon=[]):
         #        #Recenter on gridcell lat/lons
         #        ds['xv'][:,p,:] = ds['xv'][:,p,:] + (mylon[p] - ds['xc'][:,p])
         #        ds['yv'][:,p,:] = ds['yv'][:,p,:] + (mylat[p] - ds['yc'][:,p])
+        if (self.shift_lon):
+            point_lons[point_lons < 0] +=360
         ds[latvar][:] = point_lats
         ds[lonvar][:] = point_lons
-        if (self.shift_lon):
-            ds[lonvar][mylon < 0] += 360
         ds.to_netcdf(outfile+'.tmp')
         ds.close()
         os.system('mv '+outfile+'.tmp '+outfile)
