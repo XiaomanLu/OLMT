@@ -129,7 +129,7 @@ def create_multisite_script(self,sites,scriptdir, walltime=6):
     myfile.write('wait\n')
     myfile.close()
     os.system('chmod u+x '+fname)
-    return fname
+    return os.path.abspath('./'+fname)
 
 def ensemble_copy(self, ens_num):
 

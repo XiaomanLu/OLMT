@@ -9,8 +9,9 @@ import xarray as xr
 
 #Function to return the indices of the nearest grid cell centers for a list of points
 def get_pointindices_list(self, mylat, mylon, lat_grid, lon_grid, mask_grid=[]):
-    #Ensure lon is -180 to 180 for both inputs
-    mylon[mylon > 180] -= 360
+    self.shift_lon=False
+    if (max(lon_grid.flatten()) > 180):
+        self.shift_lon = True
     lon_grid[lon_grid > 180] -=360
     points = list(zip(lat_grid.flatten(),lon_grid.flatten()))
     #If mask given, only append land points
@@ -100,7 +101,6 @@ def subset_netcdf(self, index, input_file, output_file):
 def makepointdata(self, filename, mylat=[], mylon=[]):
     #Extract surface, domain, or pftdyn data from a given regional or global file.
     #If mylat and mylon are empty, it will use self.lat_bounds and self.lon_bounds to extract.
-
     mydata = Dataset(filename,'r')
     lonvar = 'LONGXY'
     latvar = 'LATIXY'
@@ -135,6 +135,7 @@ def makepointdata(self, filename, mylat=[], mylon=[]):
         else:
             mylat = np.array([self.siteinfo['lat']])
             mylon = np.array([self.siteinfo['lon']])
+        mylon[mylon > 180] -= 360
         index = self.get_pointindices_list(mylat, mylon, mydata[latvar][:], mydata[lonvar][:], mask_grid=self.mask_grid) 
         self.subset_netcdf(index, infile,  outfile)
         ds = xr.open_dataset(outfile, mode='r+')
@@ -159,19 +160,22 @@ def makepointdata(self, filename, mylat=[], mylon=[]):
                         ds['PCT_CLAY'][:] = self.siteinfo['PCT_CLAY']
                         print('Setting $CLAY to ',self.siteinfo['PCT_CLAY'])
                 #else:  TODO - handle land use transitions
-        else:
-            for p in range(0,len(mylat)):
-                #Recenter on gridcell lat/lons
-                ds['xv'][:,p] = ds['xv'][:,p] + (mylon - ds['xc'][:])
-                ds['yv'][:,p] = ds['yv'][:,p] + (mylat - ds['yc'][:])
+        #else:
+        #    for p in range(0,len(mylat)):
+        #        #Recenter on gridcell lat/lons
+        #        ds['xv'][:,p,:] = ds['xv'][:,p,:] + (mylon[p] - ds['xc'][:,p])
+        #        ds['yv'][:,p,:] = ds['yv'][:,p,:] + (mylat[p] - ds['yc'][:,p])
         ds[latvar][:] = mylat
         ds[lonvar][:] = mylon
+        if (self.shift_lon):
+            ds[lonvar][mylon < 0] += 360
         ds.to_netcdf(outfile+'.tmp')
         ds.close()
         os.system('mv '+outfile+'.tmp '+outfile)
     elif (len(self.point_list) > 0):
         point_lats = np.array([lat for lat, lon in self.point_list])
         point_lons = np.array([lon for lat, lon in self.point_list])
+        point_lons[point_lons > 180] -= 360
         index = self.get_pointindices_list(point_lats, point_lons, mydata[latvar][:], \
                 mydata[lonvar][:], mask_grid=self.mask_grid)
         self.subset_netcdf(index, infile,  outfile)
@@ -179,10 +183,12 @@ def makepointdata(self, filename, mylat=[], mylon=[]):
         #if (isdomain):
         #    for p in range(0,len(mylat)):
         #        #Recenter on gridcell lat/lons
-        #        ds['xv'][:,p] = ds['xv'][:,p] + (mylon - ds['xc'][:])
-        #        ds['yv'][:,p] = ds['yv'][:,p] + (mylat - ds['yc'][:])
+        #        ds['xv'][:,p,:] = ds['xv'][:,p,:] + (mylon[p] - ds['xc'][:,p])
+        #        ds['yv'][:,p,:] = ds['yv'][:,p,:] + (mylat[p] - ds['yc'][:,p])
         ds[latvar][:] = point_lats
         ds[lonvar][:] = point_lons
+        if (self.shift_lon):
+            ds[lonvar][mylon < 0] += 360
         ds.to_netcdf(outfile+'.tmp')
         ds.close()
         os.system('mv '+outfile+'.tmp '+outfile)
