@@ -76,7 +76,7 @@ def create_ensemble_script(self, walltime=6):
     os.system('chmod u+x case.submit_ensemble')
     self.rundir_UQ = self.runroot+'/UQ/'+self.casename
 
-def create_multisite_script(self,sites,scriptdir, walltime=6):
+def create_multisite_script(self,sites,scriptdir, walltime=24):
     #Create the PBS script we will submit to run multiple sites
     os.chdir(self.casedir)
     #Get the LD_LIBRARY_PATH from software environment
@@ -96,7 +96,7 @@ def create_multisite_script(self,sites,scriptdir, walltime=6):
     if (self.queue == 'debug'):
         walltime=2
     myfile.write('#SBATCH -t '+str(walltime)+':00:00\n')
-    myfile.write('#SBATCH -J ens_'+self.casename.replace('_'+self.site,'')+'\n')
+    myfile.write('#SBATCH -J '+self.casename.replace('_'+self.site,'')+'\n')
     myfile.write('#SBATCH --nodes='+str(nnodes)+'\n')
     if (self.project != ''):
         myfile.write('#SBATCH -A '+self.project+'\n')
@@ -123,9 +123,9 @@ def create_multisite_script(self,sites,scriptdir, walltime=6):
                 myfile.write('python '+self.OLMTdir+'/modify_netcdf.py --filename '+ \
                     self.finidat+' --var '+var+' --val '+value+'\n')
       if (self.noslurm):
-        myfile.write(self.exeroot+'/e3sm.exe &\n\n')
+        myfile.write(self.exeroot+'/e3sm.exe > e3sm_log.txt &\n\n')
       else:
-        myfile.write('srun -n '+str(self.np)+' -c 1 '+self.exeroot+'/e3sm.exe &\n\n')
+        myfile.write('srun -n '+str(self.np)+' -c 1 '+self.exeroot+'/e3sm.exe > e3sm_log.txt &\n\n')
     myfile.write('wait\n')
     myfile.close()
     os.system('chmod u+x '+fname)

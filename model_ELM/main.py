@@ -127,9 +127,12 @@ class ELMcase():
     self.queue='batch'
     if ('baseline' in self.machine):
         self.project='CLI185'
+    if ('perlmutter' in self.machine):
+        self.project='e3sm'
+        self.queue='regular'
     elif ('chrysalis' in self.machine):
         self.project='e3sm'
-        self.queue='debug'
+        self.queue='compute'
 
   def get_model_directories(self):
     if (not os.path.exists(self.modelroot)):
@@ -553,7 +556,11 @@ class ELMcase():
     #Custom namelist options
     for key in self.case_options.keys():
         if (not key in keys_exclude and not 'restart_' in key):
-            self.customize_namelist(variable=key,value=str(self.case_options[key]))
+            if (isinstance(self.case_options[key], str) and not ('hist_' in key) \
+                    and not '.true.' in self.case_options[key] and not '.false.' in self.case_options[key]):
+                self.customize_namelist(variable=key,value="'"+self.case_options[key]+"'")
+            else:
+                self.customize_namelist(variable=key,value=str(self.case_options[key]))
         elif ('humhol' in key):
             self.humhol=True
 

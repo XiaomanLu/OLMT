@@ -1,4 +1,4 @@
-import socket, os, sys
+import re, socket, os, sys
 import subprocess
 import numpy as np
 
@@ -16,6 +16,12 @@ def get_machine_info(machine_name=''):
         machine = 'cades-baseline'
     elif  ('chrlogin' in machine_name or 'chrysalis' in machine_name):
         rootdir = '/lcrc/group/e3sm/'+os.environ['USER']+'/scratch'
+        inputdata = '/lcrc/group/e3sm/ccsm-data/inputdata'
+        machine = 'chrysalis'
+    elif ('or-slurm' in machine_name):
+        rootdir = '/lustre/or-scratch/cades-ccsi/scratch/'+os.environ['USER']
+        inputdata = '/lustre/or-scratch/cades-ccsi/proj-shared/project_acme/e3sm_inputdata/'
+        machine = 'cades'
     elif ('pm-cpu' in machine_name or 'login' in machine_name):
         rootdir = os.environ['SCRATCH']
         inputdata = '/global/cfs/cdirs/e3sm/inputdata'
@@ -75,7 +81,7 @@ def get_point_list(fname):
     points=[]
     for s in myfile:
         if snum == 0:
-            header=s.split(',')
+            header=re.split(r'[,\s\t\n]+', s)
             hnum=0
             for h in header:
                 if ('lat' in h):
@@ -84,8 +90,8 @@ def get_point_list(fname):
                     loncol=hnum
                 hnum=hnum+1
         else:
-            points.append((float(s.split(',')[latcol]), \
-                float(s.split(',')[loncol])))
+            line=re.split(r'[,\s\t\n]+', s)
+            points.append((float(line[latcol]),float(line[loncol])))
         snum=snum+1
     return points
 #TODO:  Function to return met data path for various options
