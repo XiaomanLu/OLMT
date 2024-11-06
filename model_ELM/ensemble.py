@@ -45,7 +45,7 @@ def create_samples(self,sampletype='monte_carlo',nsamples=100,parm_list=''):
     os.system('mkdir -p parm_samples')
     np.savetxt(self.ensemble_file,np.transpose(self.samples))
 
-def create_ensemble_script(self, walltime=6):
+def create_ensemble_script(self, walltime=24):
     #Create the PBS script we will submit to run the ensemble
     os.chdir(self.casedir)
     #Get the LD_LIBRARY_PATH from software environment
@@ -61,7 +61,7 @@ def create_ensemble_script(self, walltime=6):
     if (self.queue == 'debug'):
         walltime=2
     myfile.write('#SBATCH -t '+str(walltime)+':00:00\n')
-    myfile.write('#SBATCH -J ens_'+self.casename+'\n')
+    myfile.write('#SBATCH -J '+self.casename+'\n')
     myfile.write('#SBATCH --nodes='+str(nnodes)+'\n')  
     if (self.project != ''):
         myfile.write('#SBATCH -A '+self.project+'\n')
@@ -167,7 +167,7 @@ def ensemble_copy(self, ens_num):
                 os.system('mv '+paramfile_new+'_tmp '+paramfile_new)
                 myoutput.write(" fates_paramfile = '"+paramfile_new+"'\n")
                 fates_paramfile = ens_dir+'/fates_params_'+gst[1:]+'.nc'
-            elif ('paramfile' in s):
+            elif ('paramfile' in s and not 'erw' in s):
                 paramfile_orig = ((s.split()[2]).strip("'"))
                 if (paramfile_orig[0:2] == './'):
                    paramfile_orig = orig_dir+'/'+paramfile_orig[2:]
@@ -199,6 +199,10 @@ def ensemble_copy(self, ens_num):
                 os.system('mv '+surffile_new+'_tmp '+surffile_new)
                 myoutput.write(" fsurdat = '"+surffile_new+"'\n")
                 surffile = ens_dir+'/surfdata_'+gst[1:]+'.nc'
+            elif ('flanduse_timeseries =' in s):
+                #Note - this is for ERW only
+                landuse_orig = ((s.split()[2]).strip("'"))
+                myoutput.write(" flanduse_timeseries = '"+landuse_orig.replace('ensemble_0','ensemble_'+str(ens_num-1))+"'\n")
             elif ('finidat = ' in s and self.has_finidat):
                 finidat_file_path = os.path.abspath(self.runroot)+'/UQ/'+self.dependcase+'/g'+gst[1:]
                 finidat_file_name = self.finidat.split('/')[-1]
@@ -256,6 +260,9 @@ def ensemble_copy(self, ens_num):
       param = self.getncvar(myfile, 'MONTHLY_LAI')
       param[:,:,:,:] = parm_values[pnum]
       ierr = self.putncvar(myfile, 'MONTHLY_LAI', param)
+    elif ('app_rate' in p or 'grain_size' in p):
+        #ERW parameters, these are handled by landuse file.
+        myfile = 'null'
     elif (p != 'co2'):
       if (p in CNP_parms):
          myfile= CNPfile

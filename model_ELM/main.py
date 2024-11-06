@@ -124,7 +124,7 @@ class ELMcase():
     self.noslurm=False
     if ('linux' in self.machine or 'ubuntu' in self.machine):
         self.noslurm=True
-    self.queue='batch'
+    self.queue='batch' #_ccsi'
     if ('baseline' in self.machine):
         self.project='CLI185'
     if ('perlmutter' in self.machine):
@@ -281,6 +281,8 @@ class ELMcase():
       cmd = cmd+' --project '+self.project
     if (self.compiler != ''):
       cmd = cmd+' --compiler '+self.compiler
+    #if ('baseline' in self.machine):
+    #  cmd = cmd+' --mpilib openmpi-amanzitpls'
     #ADD MPILIB OPTION HERE
     cmd = cmd+' > '+self.OLMTdir+'/create_newcase.log'
     os.chdir(self.modelroot+'/cime/scripts')
@@ -301,7 +303,7 @@ class ELMcase():
         self.dobuild = True
         self.exeroot = self.runroot+'/'+self.casename+'/bld'
 
-  def setup_domain_surfdata(self,makedomain=False,makesurfdat=False,makepftdyn=False):
+  def setup_domain_surfdata(self,makedomain=False,makesurfdat=False,makepftdyn=False, pft=-1):
      #------Make domain, surface data and pftdyn files ------------------
     os.chdir(self.OLMTdir)
     mysimyr=1850
@@ -317,9 +319,9 @@ class ELMcase():
     if (domainfile == '' and makedomain):
       self.makepointdata(self.domain_global)
     if (surffile == '' and makesurfdat):
-      self.makepointdata(self.surfdata_global)
+      self.makepointdata(self.surfdata_global, pft=pft)
     if (pftdynfile == '' and makepftdyn and not (self.nopftdyn)):
-      self.makepointdata(self.pftdyn_global)
+      self.makepointdata(self.pftdyn_global, pft=pft)
     if (domainfile != ''):
       print('\nDomain file:             '+ domainfile)
     if (surffile != ''):
@@ -491,17 +493,17 @@ class ELMcase():
     self.set_CNP_param_file()
     #get the default surface and domain files (to pass to makepointdata)
     #Note:  This requires setting a supported resolution
-    if ('surfdata_global' in self.case_options.keys()):
-        self.surfdata_global = self.case_options['surfdata_global']
+    if ('surffile_global' in self.case_options.keys()):
+        self.surfdata_global = self.case_options['surffile_global']
     else:
         self.surfdata_global = self.get_namelist_variable('fsurdat')[2:-1]
-    if ('domain_global' in self.case_options.keys()):
-        self.domain_global = self.case_options['domain_global']
+    if ('domainfile_global' in self.case_options.keys()):
+        self.domain_global = self.case_options['domainfile_global']
     else:
         self.domain_global   = self.get_namelist_variable('fatmlndfrc')[2:-1]
     if ('20TR' in self.casename):
-        if ('pftdyn_global' in self.case_options.keys()):
-            self.pftdyn_global = self.case_options['pftdyn_global']
+        if ('pftdynfile_global' in self.case_options.keys()):
+            self.pftdyn_global = self.case_options['pftdynfile_global']
         else:
             self.pftdyn_global = self.get_namelist_variable('flanduse_timeseries')[2:-1]
     #Set custom surface data information
@@ -552,7 +554,7 @@ class ELMcase():
                 +"trop_mozart_aero/aero/aerosoldep_rcp4.5_monthly_1849-2104_1.9x2.5_c100402.nc'")
     #Excluded keys in case_options that are not namelist options (handled elsewhere)
     keys_exclude = ['suffix','surffile','domainfile','pftdynfile','paramfile','fates_paramfile','humhol','metdir', \
-            'surfdata_global','pftdyn_global','domain_global']
+            'surffile_global','pftdynfile_global','domainfile_global']
     #Custom namelist options
     for key in self.case_options.keys():
         if (not key in keys_exclude and not 'restart_' in key):
@@ -644,14 +646,14 @@ class ELMcase():
         if (result.returncode > 0):
           print('Error:  Failed to build case.  Aborting')
           print(result.stderr)
-          sys.exit(1)
+          #sys.exit(1)
       else:
         self.xmlchange('BUILD_COMPLETE',value='TRUE')
       #If using DATM, customize the stream files
       if (not self.is_bypass()):
           self.modify_datm_streamfiles()
       #Copy customized parameter, surface and domain files to run directory
-      os.system('mkdir -p temp')
+      os.system('mkdir -p '+self.OLMTdir+'/temp')
       os.system('cp '+self.OLMTdir+'/temp/*param*.nc '+self.rundir)
       if (not 'domainfile' in self.case_options.keys()):
          os.system('cp '+self.OLMTdir+'/temp/domain.nc '+self.rundir)
