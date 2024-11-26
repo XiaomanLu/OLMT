@@ -9,11 +9,15 @@ import numpy as np
 #Get default directories, automatically detect machine if machine_name=''
 machine, rootdir, inputdata = get_machine_info(machine_name='')
 
+rootdir = "/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban" #lux
+
 #set rootdir and inputdata below if you want to override defaults
 caseroot= rootdir+'/e3sm_cases'
 runroot = rootdir+'/e3sm_run'
 #TODO:  add option to clone repository
-modelroot = os.environ['HOME']+'/models/E3SM'  #Existing E3SM code directory
+# modelroot = os.environ['HOME']+'/models/E3SM'  #Existing E3SM code directory
+modelroot = '/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/E3SM'  #lux
+
 
 #We are going to use a pre-built executable. Set exeroot='' to build 
 exeroot = ''
@@ -33,8 +37,8 @@ else:
         point_list_file = ''   #List of lat lons
 
 #If neither point_list or site is defined, it will use the bounds below.
-lat_bounds = [35.90,35.95]   
-lon_bounds = [-84.34,-84.29]
+lat_bounds = [39.172,39.447]   
+lon_bounds = [-76.8,-76.386]
 
 
 res = 'r05_r05'          #Resolution of global files to extract from

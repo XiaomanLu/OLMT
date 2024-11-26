@@ -1,0 +1,37 @@
+Compset longname is 20TR_SATM_ELM%CNPRDCTCBC_SICE_SOCN_MOSART_SGLC_SWAV
+Compset specification file is /gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/E3SM/components/elm/cime_config/config_compsets.xml
+Automatically adding SIAC to compset
+Automatically adding SESP to compset
+Compset forcing is 
+Com forcing is Historical 1850 to 2000 transient:
+ATM component is Stub atm component
+LND component is ELM with :CN :C-N-P, nutrient competition via relative demand, ctc soil cascade with black carbon deposition :
+ICE component is Stub ice component
+OCN component is Stub ocn component
+ROF component is MOSART:
+GLC component is Stub glacier (land ice) component
+WAV component is Stub wave component
+IAC component is Stub iac component
+ESP component is Stub external system processing (ESP) component
+Pes     specification file is /gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/E3SM/components/elm/cime_config/config_pes.xml
+Compset specific settings: name is RUN_STARTDATE and value is 1850-01-01
+Machine is cades-baseline
+Pes setting: grid          is a%null_l%r05_oi%null_r%r05_g%null_w%null_z%null_m%oEC60to30v3 
+Pes setting: compset       is 20TR_SATM_ELM%CNPRDCTCBC_SICE_SOCN_MOSART_SGLC_SWAV_SIAC_SESP 
+Pes setting: tasks       is {'NTASKS_ATM': -1, 'NTASKS_LND': -1, 'NTASKS_ROF': -1, 'NTASKS_ICE': -1, 'NTASKS_OCN': -1, 'NTASKS_GLC': -1, 'NTASKS_WAV': -1, 'NTASKS_CPL': -1} 
+Pes setting: threads     is {} 
+Pes setting: rootpe      is {} 
+Pes setting: pstrid      is {} 
+Pes other settings: {}
+Pes other settings append: {}
+Pes comments: elm: 1-node default for any grid,mach,compset
+setting additional fields from config_pes: {}, append {}
+ Compset is: 20TR_SATM_ELM%CNPRDCTCBC_SICE_SOCN_MOSART_SGLC_SWAV_SIAC_SESP 
+ Grid is: a%null_l%r05_oi%null_r%r05_g%null_w%null_z%null_m%oEC60to30v3 
+ Components in compset are: ['satm', 'elm', 'sice', 'socn', 'mosart', 'sglc', 'swav', 'siac', 'sesp'] 
+No charge_account info available, using value from PROJECT
+e3sm model version found: 6920f5e213
+Batch_system_type is slurm
+job is case.run USER_REQUESTED_WALLTIME 24:0:00 USER_REQUESTED_QUEUE None WALLTIME_FORMAT %H:%M:%S
+job is case.st_archive USER_REQUESTED_WALLTIME None USER_REQUESTED_QUEUE None WALLTIME_FORMAT %H:%M:%S
+ Creating Case directory /gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/e3sm_cases/20241126_Baltimore_ICB20TRCNPRDCTCBC
