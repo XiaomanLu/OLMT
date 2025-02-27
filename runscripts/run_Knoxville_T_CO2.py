@@ -24,7 +24,7 @@ modelroot = "/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/E3SM"
 exeroot = ''
 
 #----------------------Required inputs---------------------------------------------
-sites = 'WH'               #Site or list of sites (6-character FLUXNET ID) or 'all for all sites in group
+sites = 'VA'               #Site or list of sites (6-character FLUXNET ID) or 'all for all sites in group
 sitegroup = 'KNX'          #Sites defined in <inputdata>/lnd/clm2/PTCLM/<sitegroup>_sitedata.txt
 mettype = 'site'           #Site or reanalysis product
 case_suffix = ''           #Identifier for cases (leave blank if none)
@@ -34,10 +34,10 @@ use_SP         = False     #Use Satellite phenolgy mode (doesn't yet work with F
 use_fates      = False     #Use FATES compsets
 fates_nutrient = True      #Use FATES nutrient (parteh_mode = 2)
 
-nyears_ad      =  200      #number of years for ad spinup
+nyears_ad      =  200      #number of years for ad spinup 
 nyears_final   =  400      #number of years for final spinup OR for SP run
 # run from 1850 to 2024, (2024-1850+1)
-nyears_trans   =  175      #number of years for transient run 
+nyears_trans   =  175       #number of years for transient run 
                            #  If -1, the final year will be the last year of forcing data.
 run_startyear  = 1850      #Starting year for transient run OR for SP run
 
@@ -52,6 +52,10 @@ case_options['metdir'] = inputdata+f'/atm/datm7/CLM1PT_data/1x1pt_KNX-{sites}/'
 case_options['pftdynfile'] = inputdata+f'/lnd/clm2/PTCLM/1x1pt_KNX-{sites}/surfdata.pftdyn.nc'
 case_options['domainfile'] = inputdata+f'/lnd/clm2/PTCLM/1x1pt_KNX-{sites}/domain.nc'
 case_options['surffile'] = inputdata+f'/lnd/clm2/PTCLM/1x1pt_KNX-{sites}/surfdata.nc'
+# case_options['use_top_solar_rad'] = '.true.' ###uncomment for SKY_VIEW 
+# case_options['add_co2'] = 500
+# case_options['startdate_add_co2'] = "20230101"
+
 
 # Options to change output frequency and output variables
 #case_options['hist_mfilt'] = '1, 1'
@@ -73,10 +77,42 @@ postproc_freq      = 'monthly'   #Can be daily, monthly, annual
 #
 #Treatment cases will use the same compset as the last case, and will inherit case_options unless overwritten
 #Specify additional options for treatments as a list (one for each desired treatment)
-nyears_treatment   = 0                               #number of years to run treatment simulation (assumed all same)
+nyears_treatment = 0                                     #number of years to run treatment simulation (assumed all same)
 startyear_treatment = run_startyear + nyears_trans   #Starting year (assuming to start from end of transient
 treatment_options={}
 
+
+### sensitivity analysis for T
+# # Define temperature increases for sensitivity analysis
+# temp_increases = [0.0, 2.0, 4.0, 6.0, 8.0]  # Temperature steps in °C
+# treatments = [f"T{int(t*100)/100}" for t in temp_increases]  # Naming treatments
+
+# # Initialize treatment options
+# treatment_options['suffix'] = treatments
+# treatment_options['metdir'] = []
+# for treatment in treatments:   
+#     treatment_options['metdir'].append(case_options['metdir']+f'/Treatment_{treatment}/')  #Each case has its own met data directory
+
+
+# ### sensitivity analysis for T and CO2
+# treatments=['T0.00','T2.25','T4.50','T6.75','T9.00','T0.00eCO2','T2.25eCO2','T4.50eCO2','T6.75eCO2','T9.00eCO2']
+# treatment_options['suffix'] = treatments
+# treatment_options['metdir'] = []
+# treatment_options['add_co2'] = []
+# treatment_options['startdate_add_co2'] = []
+
+# for treatment in treatments:
+#     print(treatment)
+#     temp_value = treatment.split('eCO2')[0]    
+#     treatment_options['metdir'].append(case_options['metdir']+f'/Treatment_{temp_value}/')     
+    
+#     if "eCO2" in treatment:
+#         treatment_options['add_co2'].append(500)      
+#     else:
+#         treatment_options['add_co2'].append(0)  
+    
+#     treatment_options['startdate_add_co2'].append(f"{startyear_treatment}0101")
+      
 #---------------End of user input -----------------------------------------------------
 
 
