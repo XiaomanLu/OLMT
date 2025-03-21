@@ -124,15 +124,16 @@ class ELMcase():
     self.noslurm=False
     if ('linux' in self.machine or 'ubuntu' in self.machine):
         self.noslurm=True
-    self.queue='batch' #_ccsi'
+    self.queue='batch'
     if ('baseline' in self.machine):
         self.project='CLI185'
-    if ('perlmutter' in self.machine):
-        self.project='e3sm'
-        self.queue='regular'
+        self.queue='batch'
     elif ('chrysalis' in self.machine):
         self.project='e3sm'
-        self.queue='compute'
+        self.queue='debug'
+    elif ('pm-cpu' in self.machine):
+        self.project='e3sm'
+        self.queue='regular'
 
   def get_model_directories(self):
     if (not os.path.exists(self.modelroot)):
@@ -220,6 +221,7 @@ class ELMcase():
       self.paramfile = self.get_namelist_variable('paramfile')
     print('Parameter file: '+self.paramfile)
     #Copy the parameter file to the temp directory 
+    os.system('mkdir -p '+self.OLMTdir+'/temp/')
     os.system('cp '+self.paramfile+' '+self.OLMTdir+'/temp/clm_params.nc')
     #TODO - add metadata to the copied file about original filename
 
@@ -281,8 +283,6 @@ class ELMcase():
       cmd = cmd+' --project '+self.project
     if (self.compiler != ''):
       cmd = cmd+' --compiler '+self.compiler
-    #if ('baseline' in self.machine):
-    #  cmd = cmd+' --mpilib openmpi-amanzitpls'
     #ADD MPILIB OPTION HERE
     cmd = cmd+' > '+self.OLMTdir+'/create_newcase.log'
     os.chdir(self.modelroot+'/cime/scripts')
@@ -493,17 +493,17 @@ class ELMcase():
     self.set_CNP_param_file()
     #get the default surface and domain files (to pass to makepointdata)
     #Note:  This requires setting a supported resolution
-    if ('surffile_global' in self.case_options.keys()):
-        self.surfdata_global = self.case_options['surffile_global']
+    if ('surfdata_global' in self.case_options.keys()):
+        self.surfdata_global = self.case_options['surfdata_global']
     else:
         self.surfdata_global = self.get_namelist_variable('fsurdat')[2:-1]
-    if ('domainfile_global' in self.case_options.keys()):
-        self.domain_global = self.case_options['domainfile_global']
+    if ('domain_global' in self.case_options.keys()):
+        self.domain_global = self.case_options['domain_global']
     else:
         self.domain_global   = self.get_namelist_variable('fatmlndfrc')[2:-1]
     if ('20TR' in self.casename):
-        if ('pftdynfile_global' in self.case_options.keys()):
-            self.pftdyn_global = self.case_options['pftdynfile_global']
+        if ('pftdyn_global' in self.case_options.keys()):
+            self.pftdyn_global = self.case_options['pftdyn_global']
         else:
             self.pftdyn_global = self.get_namelist_variable('flanduse_timeseries')[2:-1]
     #Set custom surface data information
@@ -554,7 +554,7 @@ class ELMcase():
                 +"trop_mozart_aero/aero/aerosoldep_rcp4.5_monthly_1849-2104_1.9x2.5_c100402.nc'")
     #Excluded keys in case_options that are not namelist options (handled elsewhere)
     keys_exclude = ['suffix','surffile','domainfile','pftdynfile','paramfile','fates_paramfile','humhol','metdir', \
-            'surffile_global','pftdynfile_global','domainfile_global']
+            'surfdata_global','pftdyn_global','domain_global']
     #Custom namelist options
     for key in self.case_options.keys():
         if (not key in keys_exclude and not 'restart_' in key):
@@ -646,7 +646,7 @@ class ELMcase():
         if (result.returncode > 0):
           print('Error:  Failed to build case.  Aborting')
           print(result.stderr)
-          #sys.exit(1)
+          sys.exit(1)
       else:
         self.xmlchange('BUILD_COMPLETE',value='TRUE')
       #If using DATM, customize the stream files

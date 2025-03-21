@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#o!/usr/bin/env python
 import re, os, sys, csv, time, math
 import numpy as np
 from netCDF4 import Dataset
@@ -67,56 +67,15 @@ def get_pointindices_bbox(self, lat_bounds, lon_bounds, lat_grid, lon_grid, mask
                 index_out.append(index)
     return index_out
 
-def subset_netcdf(self, index, input_file, output_file, keep2d=False):
-     # Load the input NetCDF file
-     original_ds = xr.open_dataset(input_file, mode='r')
-     #subset_ds = xr.Dataset()
- 
-     # Select the variable and apply subsetting if specified
-     for var_name, var_data in original_ds.data_vars.items():
-         if ('lsmlat' in var_data.dims and 'lsmlon' in var_data.dims):
-             if keep2d:
-                 lat_indices = [lat for lat, lon in index]
-                 lon_indices = [lon for lat, lon in index]
-                 var_subset = var_data.isel(lsmlat=slice(min(lat_indices), max(lat_indices)),
-                                           lsmlon=slice(min(lon_indices), max(lon_indices)))
-             else:
-                 var_subset = var_data.isel(lsmlat=xr.DataArray([lat for lat, lon in index], dims='gridcell'),
-                                           lsmlon=xr.DataArray([lon for lat, lon in index], dims='gridcell'))
-         elif ('ni' in var_data.dims and 'nj' in var_data.dims):
-             #Domain file
-             if keep2d:
-                 # Use original 2D indexing
-                 lat_indices = [lat for lat, lon in index]
-                 lon_indices = [lon for lat, lon in index]
-                 var_subset = var_data.isel(nj=slice(min(lat_indices), max(lat_indices)),
-                                           ni=slice(min(lon_indices), max(lon_indices)))
-             else:
-                 # Flatten to 1D
-                 var_subset = var_data.isel(nj=xr.DataArray([lat for lat, lon in index], dims='gridcell'),
-                                           ni=xr.DataArray([lon for lat, lon in index], dims='gridcell'))
-                 var_subset = var_subset.rename({'gridcell': 'ni'})
-                 var_subset = var_subset.expand_dims(dim={'nj': [1]})
-                 var_subset = var_subset.transpose('nj', ...)
-         elif ('gridcell' in var_data.dims):
-             #Source dataset is 1D, simply extract
-             var_subset = var_data.isel({gridcell: index})
-         else:
-             var_subset = var_data
-         var_subset.to_netcdf(output_file,mode='a' if var_name != list(original_ds.data_vars)[0] else 'w')
-     original_ds.close()
 
 def subset_netcdf(self, index, input_file, output_file, keep2d=False):
     # Load the input NetCDF file
     original_ds = xr.open_dataset(input_file, mode='r')
     #subset_ds = xr.Dataset()
-    #print(index, input_file)
+    print(index, input_file)
     # Select the variable and apply subsetting if specified
     for var_name, var_data in original_ds.data_vars.items():
-        if ('gridcell' in var_data.dims):
-            #Source surface dataset is 1D, simply extract
-            var_subset = var_data.isel({'gridcell': index})
-        elif ('lsmlat' in var_data.dims and 'lsmlon' in var_data.dims):
+        if ('lsmlat' in var_data.dims and 'lsmlon' in var_data.dims):
             if keep2d:
                 lat_indices = [lat for lat, lon in index]
                 lon_indices = [lon for lat, lon in index]
@@ -126,8 +85,7 @@ def subset_netcdf(self, index, input_file, output_file, keep2d=False):
                 var_subset = var_data.isel(lsmlat=xr.DataArray([lat for lat, lon in index], dims='gridcell'),
                                            lsmlon=xr.DataArray([lon for lat, lon in index], dims='gridcell'))
         elif ('ni' in var_data.dims and 'nj' in var_data.dims):
-            if (var_data.sizes['nj'] == 1):
-                keep2d=False
+            #Domain file
             if keep2d:
                 # Use original 2D indexing
                 lat_indices = [lat for lat, lon in index]
@@ -141,6 +99,9 @@ def subset_netcdf(self, index, input_file, output_file, keep2d=False):
                 var_subset = var_subset.rename({'gridcell': 'ni'})
                 var_subset = var_subset.expand_dims(dim={'nj': [1]})
                 var_subset = var_subset.transpose('nj', ...)
+        elif ('gridcell' in var_data.dims):
+            #Source dataset is 1D, simply extract
+            var_subset = var_data.isel({gridcell: index})
         else:
             var_subset = var_data
         var_subset.to_netcdf(output_file,mode='a' if var_name != list(original_ds.data_vars)[0] else 'w')
@@ -169,7 +130,7 @@ def makepointdata(self, filename, pft=-1, mylat=[], mylon=[]):
     #Figure out which type of file
     isdomain=False
     ispftdyn=False
-    if ('domain' in filename.split('/')[-1]):
+    if ('domain' in filename):
         print('Creating domain data from ', filename)
         lonvar = 'xc'
         latvar = 'yc'
@@ -221,9 +182,6 @@ def makepointdata(self, filename, pft=-1, mylat=[], mylon=[]):
                 if (self.siteinfo['PCT_CLAY'] >= 0):
                     ds['PCT_CLAY'][:] = self.siteinfo['PCT_CLAY']
                     print('Setting $CLAY to ',self.siteinfo['PCT_CLAY'])
-                if ('Peatlands' in self.sitegroup or 'SPR' in self.site):
-                    print('Setting ORGANIC to maximum value for peatland.')
-                    ds['ORGANIC'][:] = 130.
             #else:  TODO - handle land use transitions
         #else:
         #    for p in range(0,len(mylat)):
@@ -266,10 +224,10 @@ def makepointdata(self, filename, pft=-1, mylat=[], mylon=[]):
         ds.close()
         os.system('mv '+outfile+'.tmp '+outfile)
     else:  #USe lat lon bounding box
-        if (self.lat_bounds[1]-self.lat_bounds[0] < 180 or self.lon_bounds[1]-self.lon_bounds[0] < 360):
+        if (self.lat_bounds[1]-self.lat_bounds[0] < 180 and self.lon_bounds[1]-self.lon_bounds[0] < 360):
             index = self.get_pointindices_bbox(self.lat_bounds, self.lon_bounds, mydata[latvar][:], mydata[lonvar][:], \
                 mask_grid=self.mask_grid)
-            self.subset_netcdf(index, infile,  outfile, keep2d=False)
+            self.subset_netcdf(index, infile,  outfile, keep2d=True)
         else:
             print('Global simulation requested.  Using original file.')
             self.mask_grid=[]
