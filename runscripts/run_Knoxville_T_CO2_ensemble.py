@@ -39,7 +39,7 @@ fates_nutrient = True      #Use FATES nutrient (parteh_mode = 2)
 nyears_ad      =  200      #number of years for ad spinup 
 nyears_final   =  400      #number of years for final spinup OR for SP run
 # run from 1850 to 2024, (2024-1850+1)
-nyears_trans   =  175 - 10      #number of years for transient run 
+nyears_trans   =  175      #number of years for transient run 
                            #  If -1, the final year will be the last year of forcing data.
 run_startyear  = 1850      #Starting year for transient run OR for SP run
 
@@ -71,20 +71,20 @@ case_options['hist_fincl2'] = " 'QVEGE','QVEGT','TLAI' "
 
 #--------------------ensemble options------------------------------------------------
 
-parm_list      = ''    #Set parameter list (leave blank for no ensemble)
-nsamples       =  1000    #number of samples to run
-np_ensemble    =  384    #number of ensemble numbers to run in parallel (MUST be <= nsamples)
+parm_list      = '/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/OLMT/runscripts/parm_file_Knoxville'    #Set parameter list (leave blank for no ensemble)
+nsamples       =  4000    #number of samples to run
+np_ensemble    =  400     #number of ensemble numbers to run in parallel (MUST be <= nsamples)
 ensemble_file  = ''     #File containing samples (if blank, OLMT will generate one)
-postproc_vars  = ['GPP','ER','NPP','NEE','TLAI','FSH','EFLX_LH_TOT']  #Variables to automatically post-process
-postproc_startyear = 2000
-postproc_endyear   = 2007
-postproc_freq      = 'monthly'   #Can be daily, monthly, annual
+postproc_vars  = ['GPP','ER','NPP','NEE','TLAI','QVEGT','QVEGE','QSOIL','FSH','EFLX_LH_TOT']  #Variables to automatically post-process
+postproc_startyear = 2014
+postproc_endyear   = 2024
+postproc_freq      = 'daily'   #Can be daily, monthly, annual
 
 #----------------------Define treatment cases ----------------------------------------
 #
 #Treatment cases will use the same compset as the last case, and will inherit case_options unless overwritten
 #Specify additional options for treatments as a list (one for each desired treatment)
-nyears_treatment = 10                                     #number of years to run treatment simulation (assumed all same)
+nyears_treatment = 0                                     #number of years to run treatment simulation (assumed all same)
 startyear_treatment = run_startyear + nyears_trans   #Starting year (assuming to start from end of transient
 treatment_options={}
 
@@ -100,25 +100,6 @@ treatment_options={}
 # for treatment in treatments:   
 #     treatment_options['metdir'].append(case_options['metdir']+f'/Treatment_{treatment}/')  #Each case has its own met data directory
 
-
-### sensitivity analysis for T and CO2
-treatments=['T0.00','T2.25','T4.50','T6.75','T9.00','T0.00eCO2','T2.25eCO2','T4.50eCO2','T6.75eCO2','T9.00eCO2']
-treatment_options['suffix'] = treatments
-treatment_options['metdir'] = []
-treatment_options['add_co2'] = []
-treatment_options['startdate_add_co2'] = []
-
-for treatment in treatments:
-    print(treatment)
-    temp_value = treatment.split('eCO2')[0]    
-    treatment_options['metdir'].append(case_options['metdir']+f'/Treatment_{temp_value}/')     
-    
-    if "eCO2" in treatment:
-        treatment_options['add_co2'].append(500)      
-    else:
-        treatment_options['add_co2'].append(0)  
-    
-    treatment_options['startdate_add_co2'].append(f"{startyear_treatment}0101")
       
 #---------------End of user input -----------------------------------------------------
 
