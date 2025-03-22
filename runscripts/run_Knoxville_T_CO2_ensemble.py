@@ -75,7 +75,9 @@ parm_list      = '/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/OLMT/
 nsamples       =  4000    #number of samples to run
 np_ensemble    =  400     #number of ensemble numbers to run in parallel (MUST be <= nsamples)
 ensemble_file  = ''     #File containing samples (if blank, OLMT will generate one)
-postproc_vars  = ['GPP','ER','NPP','NEE','TLAI','QVEGT','QVEGE','QSOIL','FSH','EFLX_LH_TOT']  #Variables to automatically post-process
+
+# The postproc utility does not seem to work. Skip ...
+postproc_vars  = []  #Variables to automatically post-process
 postproc_startyear = 2014
 postproc_endyear   = 2024
 postproc_freq      = 'daily'   #Can be daily, monthly, annual
