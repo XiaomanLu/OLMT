@@ -20,6 +20,8 @@ parser.add_option("--case", dest="case", default="", \
 myfile=open('pklfiles/'+options.case+'.pkl','rb')
 mycase=pickle.load(myfile)
 
+mycase.postproc_vars = []
+
 #get the node file and parse
 def get_nodelist():
   mynodes=[]
