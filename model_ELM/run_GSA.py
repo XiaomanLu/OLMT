@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from SALib.sample import saltelli
 from SALib.analyze import sobol
 matplotlib.use('Agg')
+import matplotlib.patches as mpatches
 
 
 def GSA(self, myvars, n_saltelli=8192):
@@ -37,7 +38,8 @@ def GSA(self, myvars, n_saltelli=8192):
         self.sens_main[v][:,i]=Si['S1']
         self.sens_tot[v][:,i]=Si['ST']
 
-def plot_GSA(self, myvars):
+
+"""def plot_GSA(self, myvars):
     for v in myvars:
       #Plot main sensitivity indices
       fig,ax = plt.subplots()
@@ -50,8 +52,8 @@ def plot_GSA(self, myvars):
       for p in range(1,self.nparms_ensemble):
        ax.bar(x_pos, self.sens_main[v][p,:], bottom=bottom)
        bottom=bottom+self.sens_main[v][p,:]
-      plt.legend(self.ensemble_parms)
-      plt.savefig('sens_main_'+v+'.png')
+      plt.legend(self.ensemble_parms, bbox_to_anchor = (1.2, 0.5))
+      plt.savefig(self.OLMTdir+'/plots/sens_main_'+v+'.png')
       #
       #Total sensitivity indices
       fig,ax = plt.subplots()
@@ -62,5 +64,102 @@ def plot_GSA(self, myvars):
       for p in range(1,self.nparms_ensemble):
        ax.bar(x_pos, self.sens_tot[v][p,:], bottom=bottom)
        bottom=bottom+self.sens_tot[v][p,:]
-      plt.legend(self.ensemble_parms)
-      plt.savefig('sens_tot_'+v+'.png')
+      plt.legend(self.ensemble_parms, bbox_to_anchor = (1.2, 0.5))
+      plt.savefig(self.OLMTdir+'/plots/sens_tot_'+v+'.png')
+"""
+
+def plot_GSA(self, myvars):
+    UQ_output = './UQ_output/' + self.casename + '/GSA'
+    os.makedirs(UQ_output, exist_ok=True)  # Ensures the directory exists
+    
+    for v in myvars:
+        if v != 'taxis':
+            # Create the figure and axis
+            fig, ax = plt.subplots(figsize=(10, 6))  # Larger figure for better visualization
+            
+            nvar = self.sens_main[v].shape[1]
+            x_pos = np.arange(nvar)
+            
+            # Define distinct colors and patterns
+            colors = plt.cm.tab20.colors  # Use a colormap for distinct colors
+            hatches = ['/', '\\', '|', '-', '+', 'x', 'o', 'O', '.', '*']  # Patterns
+            
+            # Plot the stacked bars
+            bottom = np.zeros(nvar)
+            patches = []  # Store legend handles
+            
+            for p in range(self.nparms_ensemble):
+                color = colors[p % len(colors)]
+                hatch = hatches[p % len(hatches)]
+                bar = ax.bar(
+                    x_pos, 
+                    self.sens_main[v][p, :], 
+                    bottom=bottom, 
+                    color=color, 
+                    hatch=hatch, 
+                    edgecolor='black'
+                )
+                bottom += self.sens_main[v][p, :]
+                
+                # Create a legend entry
+                patches.append(mpatches.Patch(facecolor=color, hatch=hatch, edgecolor='black', label=self.ensemble_parms[p] + str(self.ensemble_pfts[p])))
+            
+            # Adjust the axis and labels
+            ax.set_xticks(x_pos)
+            ax.set_xticklabels([f'Var {i+1}' for i in range(nvar)], rotation=45)
+            ax.set_ylabel('Sensitivity Index')
+            ax.set_title(f'Main Sensitivity Indices for {v}')
+            
+            # Place legend outside the plot
+            ax.legend(
+                handles=patches, 
+                loc='upper left', 
+                bbox_to_anchor=(1, 1), 
+                title='Parameters'
+            )
+            
+            # Save the plot
+            plt.tight_layout()
+            plt.savefig(self.OLMTdir + f'/plots/sens_main_{v}.png', bbox_inches='tight')
+            plt.close(fig)  # Close the figure to free memory
+
+            #Plot total sensitivity
+            fig, ax = plt.subplots(figsize=(10, 6))  # Larger figure for better visualization
+            # Plot the stacked bars
+            bottom = np.zeros(nvar)
+            patches = []  # Store legend handles
+
+            for p in range(self.nparms_ensemble):
+                color = colors[p % len(colors)]
+                hatch = hatches[p % len(hatches)]
+                bar = ax.bar(
+                    x_pos,
+                    self.sens_tot[v][p, :],
+                    bottom=bottom,
+                    color=color,
+                    hatch=hatch,
+                    edgecolor='black'
+                )
+                bottom += self.sens_tot[v][p, :]
+
+                # Create a legend entry
+                patches.append(mpatches.Patch(facecolor=color, hatch=hatch, edgecolor='black', label=self.ensemble_parms[p] + str(self.ensemble_pfts[p])))
+
+            # Adjust the axis and labels
+            ax.set_xticks(x_pos)
+            ax.set_xticklabels([f'Var {i+1}' for i in range(nvar)], rotation=45)
+            ax.set_ylabel('Sensitivity Index')
+            ax.set_title(f'Total Sensitivity Indices for {v}')
+
+            # Place legend outside the plot
+            ax.legend(
+                handles=patches,
+                loc='upper left',
+                bbox_to_anchor=(1, 1),
+                title='Parameters'
+            )
+
+            # Save the plot
+            plt.tight_layout()
+            plt.savefig(self.OLMTdir + f'/plots/sens_tot_{v}.png', bbox_inches='tight')
+            plt.close(fig)  # Close the figure to free memory
