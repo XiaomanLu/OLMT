@@ -3,6 +3,7 @@
 import os, sys, csv, time, math
 import numpy as np
 import datetime
+import matplotlib.pyplot as plt
 
 #Read the parameter list file
 def read_parm_list(self, parm_list=''):
@@ -60,11 +61,7 @@ def create_ensemble_script(self, walltime=24):
     myfile.write('#!/bin/bash -e\n\n')
     if (self.queue == 'debug'):
         walltime=2
-    if ('pm-cpu' in self.machine):
-        myfile.write('#SBATCH -t '+str(walltime)+'\n')
-        myfile.write('#SBATCH --constraint=cpu\n')
-    else:
-        myfile.write('#SBATCH -t '+str(walltime)+':00:00\n')
+    myfile.write('#SBATCH -t '+str(walltime)+':00:00\n')
     myfile.write('#SBATCH -J '+self.casename+'\n')
     myfile.write('#SBATCH --nodes='+str(nnodes)+'\n')  
     if (self.project != ''):
@@ -80,7 +77,7 @@ def create_ensemble_script(self, walltime=24):
     os.system('chmod u+x case.submit_ensemble')
     self.rundir_UQ = self.runroot+'/UQ/'+self.casename
 
-def create_multisite_script(self,sites,scriptdir, walltime=6):
+def create_multisite_script(self,sites,scriptdir, walltime=24):
     #Create the PBS script we will submit to run multiple sites
     os.chdir(self.casedir)
     #Get the LD_LIBRARY_PATH from software environment
@@ -99,11 +96,7 @@ def create_multisite_script(self,sites,scriptdir, walltime=6):
     myfile.write('#!/bin/bash -e\n\n')
     if (self.queue == 'debug'):
         walltime=2
-    if ('pm-cpu' in self.machine):
-        myfile.write('#SBATCH -t '+str(walltime)+'\n')
-        myfile.write('#SBATCH --constraint=cpu\n')
-    else:
-        myfile.write('#SBATCH -t '+str(walltime)+':00:00\n')
+    myfile.write('#SBATCH -t '+str(walltime)+':00:00\n')
     myfile.write('#SBATCH -J '+self.casename.replace('_'+self.site,'')+'\n')
     myfile.write('#SBATCH --nodes='+str(nnodes)+'\n')
     if (self.project != ''):
@@ -131,10 +124,9 @@ def create_multisite_script(self,sites,scriptdir, walltime=6):
                 myfile.write('python '+self.OLMTdir+'/modify_netcdf.py --filename '+ \
                     self.finidat+' --var '+var+' --val '+value+'\n')
       if (self.noslurm):
-        myfile.write(self.exeroot+'/e3sm.exe > '+self.rundir+'/e3sm_log.txt &\n\n')
+        myfile.write(self.exeroot+'/e3sm.exe > e3sm_log.txt &\n\n')
       else:
-        myfile.write('srun -n '+str(self.np)+' -c 1 '+self.exeroot+'/e3sm.exe > '+ \
-                self.rundir+'/e3sm_log.txt &\n\n')
+        myfile.write('srun -n '+str(self.np)+' -c 1 '+self.exeroot+'/e3sm.exe > e3sm_log.txt &\n\n')
     myfile.write('wait\n')
     myfile.close()
     os.system('chmod u+x '+fname)
@@ -176,7 +168,7 @@ def ensemble_copy(self, ens_num):
                 os.system('mv '+paramfile_new+'_tmp '+paramfile_new)
                 myoutput.write(" fates_paramfile = '"+paramfile_new+"'\n")
                 fates_paramfile = ens_dir+'/fates_params_'+gst[1:]+'.nc'
-            elif ('paramfile' in s):
+            elif ('paramfile' in s and not 'erw' in s):
                 paramfile_orig = ((s.split()[2]).strip("'"))
                 if (paramfile_orig[0:2] == './'):
                    paramfile_orig = orig_dir+'/'+paramfile_orig[2:]
@@ -208,6 +200,10 @@ def ensemble_copy(self, ens_num):
                 os.system('mv '+surffile_new+'_tmp '+surffile_new)
                 myoutput.write(" fsurdat = '"+surffile_new+"'\n")
                 surffile = ens_dir+'/surfdata_'+gst[1:]+'.nc'
+            elif ('flanduse_timeseries =' in s):
+                #Note - this is for ERW only
+                landuse_orig = ((s.split()[2]).strip("'"))
+                myoutput.write(" flanduse_timeseries = '"+landuse_orig.replace('ensemble_0','ensemble_'+str(ens_num-1))+"'\n")
             elif ('finidat = ' in s and self.has_finidat):
                 finidat_file_path = os.path.abspath(self.runroot)+'/UQ/'+self.dependcase+'/g'+gst[1:]
                 finidat_file_name = self.finidat.split('/')[-1]
@@ -265,6 +261,9 @@ def ensemble_copy(self, ens_num):
       param = self.getncvar(myfile, 'MONTHLY_LAI')
       param[:,:,:,:] = parm_values[pnum]
       ierr = self.putncvar(myfile, 'MONTHLY_LAI', param)
+    elif ('app_rate' in p or 'grain_size' in p):
+        #ERW parameters, these are handled by landuse file.
+        myfile = 'null'
     elif (p != 'co2'):
       if (p in CNP_parms):
          myfile= CNPfile
@@ -283,6 +282,9 @@ def ensemble_copy(self, ens_num):
          param[parm_indices[pnum] / 12 , parm_indices[pnum] % 12] = parm_values[pnum]
       elif ('fates_leaf_long' in p or 'fates_leaf_vcmax25top' in p):
          param[0,parm_indices[pnum]] = parm_values[pnum]
+      elif (p == 'kmax' or p == 'psi50'):
+          #2D parameter, set all segments to the same value
+          param[:,parm_indices[pnum]] = parm_values[pnum]
       #elif (p == 'fates_seed_alloc'):
       #    if (not fates_seed_zeroed[0]):
       #       param[:]=0.
@@ -327,5 +329,57 @@ def ensemble_copy(self, ens_num):
   #  ierr = self.putncvar(myfile, 'fates_seed_alloc_mature', param2)
 
 
+def plot_ensemble(self, myvar, percentiles=[1, 5, 25, 50, 75, 95, 99], factor=1):
+    UQ_output = './UQ_output/' + self.casename + '/ensemble'
+    os.makedirs(UQ_output, exist_ok=True)  # Ensures the directory exists
+    """
+    Plots percentiles (99th, 95th, 75th, 50th, 25th, 5th, and 1st) for ensemble data.
+    
+    Parameters:
+        data (numpy.ndarray): 2D array of ensemble data (shape: [ensemble_size, num_time_steps]).
+        x_axis (list or numpy.ndarray): x-axis values (e.g., time).
+        output_file (str): Path to save the plot.
+    """
+    # Percentiles to calculate
+    data=self.output[myvar].transpose()
+
+    # Calculate percentiles along the ensemble axis
+    percentile_values = np.nanpercentile(data, percentiles, axis=0)
+
+    # Define line styles for each percentile
+    # (Use the same style for matching pairs: 1/99, 5/95, 25/75, and make 50 bold)
+    line_styles = {
+        1:  {'linestyle': '--', 'color': 'black',  'linewidth': 2},
+        99: {'linestyle': '--', 'color': 'black',  'linewidth': 2},
+        5:  {'linestyle': '-.', 'color': 'black', 'linewidth': 2},
+        95: {'linestyle': '-.', 'color': 'black', 'linewidth': 2},
+        25: {'linestyle': ':',  'color': 'black','linewidth': 2},
+        75: {'linestyle': ':',  'color': 'black','linewidth': 2},
+        50: {'linestyle': '-',  'color': 'black',   'linewidth': 3},  # Bold line
+    }
+
+    # Plot each percentile
+    plt.figure(figsize=(10, 6))
+    for i, p in enumerate(percentiles):
+        style = line_styles[p]
+        plt.plot(self.output['taxis'],
+                 percentile_values[i, :]*factor,
+                 linestyle=style['linestyle'],
+                 color=style['color'],
+                 linewidth=style['linewidth'],
+                 label=f'{p}th Percentile')
+
+
+    # Add labels and legend
+    plt.xlabel("Time Step")
+    plt.ylabel("Value")
+    plt.title("Ensemble Percentiles")
+    plt.legend()
+    plt.grid(True)
+
+    # Save the plot
+    plt.tight_layout()
+    plt.savefig(UQ_output+f'/{myvar}_percentiles.png', bbox_inches='tight')
+    plt.close()
 
 ### END ###
