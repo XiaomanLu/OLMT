@@ -5,6 +5,8 @@ import numpy as np
 import subprocess
 import pickle
 import model_ELM
+import warnings
+warnings.filterwarnings("ignore")
 
 #get the node file and parse
 def get_nodelist():
@@ -114,7 +116,8 @@ def postprocess_ensemble(n):
 # Dynamic paras
 caseid='20250320'
 site='WH'
-UQ_only = True # True - directly read from pklfile; False - re-generate the "output" dict and overwrite pklfile; 
+UQ_only = True # True - directly read from pklfile.
+# False - re-generate the "output" dict and overwrite pklfile. Using "sbatch job_urban.sh" after "conda deactivate"!!!
 
 
 # fixed paras
@@ -125,7 +128,7 @@ casename=caseid+'_'+site+'_'+compset
 postproc_only = True
 
 
-#Make sure to back up the old pkl files before this step!
+#Make sure to back up the old pkl files before this step!!!
 #Create case object
 if (not UQ_only):   
     mycase = model_ELM.ELMcase(caseid=caseid,compset=compset,site=site, \
@@ -215,7 +218,7 @@ if (not UQ_only):
 
 #------UQ -----------------------------
 #Train surrogate models; break out the individual PFTs here
-mycase.train_surrogate(['TLAI_pft7']) #,'TLAI_pft13','TLAI','QVEGE_pft7','QVEGE_pft13'
+mycase.train_surrogate(['TLAI_pft7']) #'TLAI_pft7','TLAI_pft13','TLAI','QVEGE_pft7','QVEGE_pft13'
 
 #run GSA (Global Sensitivity Analysis)
 mycase.GSA(['TLAI_pft7']) # will break out into individual pft outputs

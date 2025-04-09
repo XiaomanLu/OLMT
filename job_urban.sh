@@ -12,4 +12,4 @@ module load python/3.11-anaconda3
 source activate myenv 
 
 cd ${SLURM_SUBMIT_DIR} 
-srun python manage_ensemble_postproc_YP.py
+python manage_ensemble_postproc_Knoxville.py
