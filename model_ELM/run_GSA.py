@@ -24,10 +24,10 @@ def GSA(self, myvars, n_saltelli=8192):
             'names': unique_names,   #Should not have repeated names!!
             'bounds': pbounds
             }      
-    # print("Defined problem:")
-    # print("  num_vars:", problem['num_vars'])
-    # print("  names:", problem['names'])
-    # print("  bounds shape:", problem['bounds'].shape)    
+    print("Defined problem:")
+    print("  num_vars:", problem['num_vars'])
+    print("  names:", problem['names'])
+    print("  bounds shape:", problem['bounds'].shape)    
     
     psamples = saltelli.sample(problem, n_saltelli)      
 
@@ -41,7 +41,7 @@ def GSA(self, myvars, n_saltelli=8192):
         self.sens_tot[v]  = np.zeros([self.nparms_ensemble,nvar],float)  
         
         for i in range(0,nvar):            
-            Si = sobol.analyze(problem, surrogate_output[v][:,i])       #, calc_second_order=False                          
+            Si = sobol.analyze(problem, surrogate_output[v][:,i])       #, calc_second_order=False; It’s removing duplicates from problem['names']                         
             self.sens_main[v][:,i]=Si['S1']
             self.sens_tot[v][:,i]=Si['ST']
    
@@ -137,9 +137,9 @@ def plot_GSA(self, myvars, caseid, site):
             fig, ax = plt.subplots(figsize=(10, 6))  # Larger figure for better visualization
             # Plot the stacked bars
             bottom = np.zeros(nvar)
-            patches = []  # Store legend handles
+            patches = []  # Store legend handles            
 
-            for p in range(self.nparms_ensemble):
+            for p in range(self.nparms_ensemble):                
                 color = colors[p % len(colors)]
                 hatch = hatches[p % len(hatches)]
                 bar = ax.bar(
