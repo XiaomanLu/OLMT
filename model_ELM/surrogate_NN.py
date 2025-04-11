@@ -93,7 +93,7 @@ def train_surrogate(self,myvars):
       plt.title(f'$R^2$: {round(rsq,3)}')
       plt.xlabel('Original model')
       plt.ylabel('\nSurrogate model')
-      plt.savefig(UQ_output+'/'+vname+'_surrogate'+str(qoi)+'.png', bbox_inches='tight')
+      plt.savefig(UQ_output+'/'+vname+f'_surrogate_{self.postproc_freq}_'+str(qoi)+'.png', bbox_inches='tight')
       plt.close()
 
 def run_surrogate(self,parms,myvars):

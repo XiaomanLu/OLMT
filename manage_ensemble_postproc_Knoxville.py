@@ -116,9 +116,15 @@ def postprocess_ensemble(n):
 # Dynamic paras
 caseid='20250320'
 site='WH'
-UQ_only = True # True - directly read from pklfile.
-# False - re-generate the "output" dict and overwrite pklfile. Using "sbatch job_urban.sh" after "conda deactivate"!!!
+# caseid='20250328'
+# site='CL'
 
+UQ_only = False # True - directly read from pklfile.
+# False - re-generate the "output" dict and overwrite pklfile. Using "sbatch job_urban.sh" after "conda deactivate"!!!
+my_postproc_vars = ['H2OSOI', 'TLAI_pft','QVEGE_pft','QVEGT_pft']
+my_postproc_vars_pft = ['H2OSOI', 'TLAI_pft7', 'TLAI_pft13', 'QVEGE_pft7','QVEGE_pft13', 'QVEGT_pft7','QVEGT_pft13']
+# my_postproc_vars = ['TLAI']  
+# my_postproc_vars_pft = ['TLAI']
 
 # fixed paras
 PATH_URBAN = '/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/'
@@ -130,7 +136,9 @@ postproc_only = True
 
 #Make sure to back up the old pkl files before this step!!!
 #Create case object
-if (not UQ_only):   
+if (not UQ_only):  
+    os.system(f"cp {PATH_URBAN}OLMT/pklfiles/{casename}.pkl_actual_ensemble_run {PATH_URBAN}OLMT/pklfiles/{casename}.pkl")
+    
     mycase = model_ELM.ELMcase(caseid=caseid,compset=compset,site=site, \
             sitegroup='KNX', machine='cases-baseline', \
             runroot=PATH_URBAN+'e3sm_run', \
@@ -140,15 +148,15 @@ if (not UQ_only):
     mycase.startyear=2014   #Starting year of run; doesn't have to be same as actual run
     mycase.run_n=11         #Number of years for the run (to post process)
     mycase.postproc_pfts=[7,13]  #PFTs to postprocess
-    mycase.postproc_vars=['TLAI','TLAI_pft','QVEGE_pft']
+    mycase.postproc_vars=my_postproc_vars 
     mycase.postproc_startyear=2014    #Starting year to postprocess/calibrate
     mycase.postproc_endyear= 2024
-    mycase.postproc_freq = 'annual'
+    mycase.postproc_freq = 'annual'  #options; ['daily', 'monthly', 'annual']
     mycase.read_parm_list(PATH_URBAN+'OLMT/runscripts/parm_file_Knoxville')    
     samples_file=PATH_URBAN+f'OLMT/parm_samples/mcsamples_{caseid}_4000.txt'
     mycase.samples = (np.loadtxt(samples_file,)).transpose()
-    mycase.nsamples=40 # 00
-    mycase.np_ensemble=mycase.samples.shape[0]
+    mycase.nsamples=4000 # 00  
+    mycase.np_ensemble=mycase.samples.shape[0] #The number of self.ensemble_parms
     mycase.npernode=128
     mycase.obs={}
     mycase.obs_err={}
@@ -181,8 +189,7 @@ if (not UQ_only):
          if (sum(pactive) < int(mycase.np_ensemble)):
             jobst = str(100000+n_job)
             rundir = mycase.runroot+'/UQ/'+mycase.casename+'/g'+jobst[1:]+'/'
-            log_file_path = f"{rundir}e3sm_log.txt"
-            #log_file_path = '/gpfs/wolf2/cades/cli185/proj-shared/zdr/OLMT/e3sm_log.txt'
+            log_file_path = f"{rundir}e3sm_log.txt"            
             #Copy relevant files
             if not postproc_only:
                 mycase.ensemble_copy(n_job)
@@ -212,22 +219,26 @@ if (not UQ_only):
     ## mycase.output['NPP_correct'] = (mycase.output['FATES_NPP']-mycase.output['FATES_EXCESS_RESP'])*24*3600*365*1000
     ## mycase.output['NUP'] = (mycase.output['FATES_NH4UPTAKE']+mycase.output['FATES_NO3UPTAKE'])*24*3600*365*1000
     ## mycase.postproc_vars.append('NPP_correct')
-    ## mycase.postproc_vars.append('NUP')
+    ## mycase.postproc_vars.append('NUP')       
+     
+    # save case
     mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/')
 
 
-#------UQ -----------------------------
+
+#------UQ -----------------------------   
 #Train surrogate models; break out the individual PFTs here
-mycase.train_surrogate(['TLAI_pft7']) #'TLAI_pft7','TLAI_pft13','TLAI','QVEGE_pft7','QVEGE_pft13'
+mycase.train_surrogate(my_postproc_vars_pft)    #will produce plot only here; cannot change location 
 
 #run GSA (Global Sensitivity Analysis)
-mycase.GSA(['TLAI_pft7']) # will break out into individual pft outputs
+mycase.GSA(my_postproc_vars_pft) # will break out into individual pft outputs
 
 #plot GSA
-mycase.plot_GSA(['TLAI_pft7'], caseid, site)
+mycase.Lineplot_GSA(my_postproc_vars_pft, caseid, site)
 
 #Save postprocessed output
 mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/')
+
 
 
 
