@@ -14,4 +14,7 @@ source activate myenv
 
 cd ${SLURM_SUBMIT_DIR} 
 python manage_ensemble_postproc_Knoxville.py
+<<<<<<< HEAD
 
+=======
+>>>>>>> d2e84d283083e80179aabf0501128df668937253
