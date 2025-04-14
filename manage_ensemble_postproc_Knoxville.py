@@ -113,18 +113,11 @@ def postprocess_ensemble(n):
 
 ####################################################### MAIN #######################################################
 
-# Dynamic paras
-<<<<<<< HEAD
+### Dynamic paras
 # caseid='20250320'
 # site='WH'
 caseid='20250328'
 site='CL'
-=======
-caseid='20250320'
-site='WH'
-UQ_only = True # True - directly read from pklfile.
-# False - re-generate the "output" dict and overwrite pklfile. Using "sbatch job_urban.sh" after "conda deactivate"!!!
->>>>>>> d2e84d283083e80179aabf0501128df668937253
 
 UQ_only = False # True - directly read from pklfile.
 # False - re-generate the "output" dict and overwrite pklfile. Using "sbatch job_urban.sh" after "conda deactivate"!!!
@@ -235,11 +228,7 @@ if (not UQ_only):
 
 #------UQ -----------------------------   
 #Train surrogate models; break out the individual PFTs here
-<<<<<<< HEAD
 mycase.train_surrogate(my_postproc_vars_pft)    #will produce plot only here; cannot change location 
-=======
-mycase.train_surrogate(['TLAI_pft7']) #'TLAI_pft7','TLAI_pft13','TLAI','QVEGE_pft7','QVEGE_pft13'
->>>>>>> d2e84d283083e80179aabf0501128df668937253
 
 #run GSA (Global Sensitivity Analysis)
 mycase.GSA(my_postproc_vars_pft) # will break out into individual pft outputs
