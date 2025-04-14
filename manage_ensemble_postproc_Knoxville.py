@@ -114,10 +114,10 @@ def postprocess_ensemble(n):
 ####################################################### MAIN #######################################################
 
 # Dynamic paras
-caseid='20250320'
-site='WH'
-# caseid='20250328'
-# site='CL'
+# caseid='20250320'
+# site='WH'
+caseid='20250328'
+site='CL'
 
 UQ_only = False # True - directly read from pklfile.
 # False - re-generate the "output" dict and overwrite pklfile. Using "sbatch job_urban.sh" after "conda deactivate"!!!
@@ -151,7 +151,7 @@ if (not UQ_only):
     mycase.postproc_vars=my_postproc_vars 
     mycase.postproc_startyear=2014    #Starting year to postprocess/calibrate
     mycase.postproc_endyear= 2024
-    mycase.postproc_freq = 'annual'  #options; ['daily', 'monthly', 'annual']
+    mycase.postproc_freq = 'monthly'  #options; ['daily', 'monthly', 'annual']
     mycase.read_parm_list(PATH_URBAN+'OLMT/runscripts/parm_file_Knoxville')    
     samples_file=PATH_URBAN+f'OLMT/parm_samples/mcsamples_{caseid}_4000.txt'
     mycase.samples = (np.loadtxt(samples_file,)).transpose()

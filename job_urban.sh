@@ -4,9 +4,9 @@
 #SBATCH --account=CLI185 
 #SBATCH --time=24:00:00 
 #SBATCH --partition=batch_ccsi 
-#SBATCH --job-name="GSA_WH" 
-#SBATCH --output=GSA_WH.out 
-#SBATCH --error=GSA_WH.err 
+#SBATCH --job-name="GSA_CL" 
+#SBATCH --output=GSA_CL.out 
+#SBATCH --error=GSA_CL.err 
 
 module load nco
 module load python/3.11-anaconda3 

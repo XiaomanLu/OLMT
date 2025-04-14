@@ -90,7 +90,7 @@ def train_surrogate(self,myvars):
       rsq = np.corrcoef(yval.astype(float)[:,qoi], ypredict_val.astype(float)[:,qoi])[0,1]**2
       print(qoi, rsq)
       plt.plot(yval.astype(float)[:,qoi],ypredict_val.astype(float)[:,qoi],'ro')
-      plt.title(f'$R^2$: {round(rsq,3)}')
+      plt.title(f'Site: {self.site}; Variable: {vname}; $R^2$: {round(rsq,3)}')
       plt.xlabel('Original model')
       plt.ylabel('\nSurrogate model')
       plt.savefig(UQ_output+'/'+vname+f'_surrogate_{self.postproc_freq}_'+str(qoi)+'.png', bbox_inches='tight')
