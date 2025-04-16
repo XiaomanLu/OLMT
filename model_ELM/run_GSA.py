@@ -25,13 +25,6 @@ def GSA(self, myvars, n_saltelli=8192):
             'names': unique_names,   #Should not have repeated names!!
             'bounds': pbounds
             }      
-<<<<<<< HEAD
-=======
-    print("Defined problem:")
-    print("  num_vars:", problem['num_vars'])
-    print("  names:", problem['names'])
-    print("  bounds shape:", problem['bounds'].shape)    
->>>>>>> d2e84d283083e80179aabf0501128df668937253
     
     print("Defined problem:")
     print("  num_vars:", problem['num_vars'])
@@ -60,18 +53,18 @@ def GSA(self, myvars, n_saltelli=8192):
 def get_mon_avg_arossyrs(self, my_value):            
     # Calculate monthly averages  
     my_freq = 12
-    my_value = np.zeros((self.nparms_ensemble, my_freq))
+    my_value_out = np.zeros((self.nparms_ensemble, my_freq))
     
     for p in range(self.nparms_ensemble):
         for m in range(my_freq):
-            my_value[p, m] = np.mean(my_value[p, m::my_freq])            
-    return(my_freq, my_value)
+            my_value_out[p, m] = np.mean(my_value[p, m::my_freq])            
+    return(my_freq, my_value_out)
 
 
 
-def get_daily_avg_acrossyrs(self, my_value):
+def get_daily_avg_acrossyrs(self, my_value):       
     my_freq = 365
-    my_value = np.zeros((self.nparms_ensemble, my_freq))  # or 366 if you include Feb 29
+    my_value_out = np.zeros((self.nparms_ensemble, my_freq))  # or 366 if you include Feb 29
     
     # create daily time index
     dates = pd.date_range(start=f'{self.postproc_startyear}-01-01', end=f'{self.postproc_endyear}-12-31', freq='D')
@@ -83,21 +76,24 @@ def get_daily_avg_acrossyrs(self, my_value):
     for p in range(self.nparms_ensemble):        
         df['value'] = my_value[p, :]            
         daily_means = df.groupby('month_day')['value'].mean().values
-        my_value[p, :] = daily_means
-    return(my_freq, my_value)
+        my_value_out[p, :] = daily_means
+    return(my_freq, my_value_out)
 
 
 def plot_sens_v(self, v, my_value, my_title, my_outfile):            
     ## pre-processed data to mean during postproc_freq
     if self.postproc_freq=="annual":
-        my_freq, my_value = my_value.shape[1], my_value                 
+        my_freq, my_value = my_value.shape[1], my_value  
+        xticks = np.arange(my_freq)             
         xticklabels = range(self.postproc_startyear, self.postproc_endyear+1)                
     elif self.postproc_freq=="monthly":
         my_freq, my_value = get_mon_avg_arossyrs(self, my_value)
+        xticks = np.arange(my_freq) 
         xticklabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     elif self.postproc_freq=="daily":
-        my_freq, my_value = get_daily_avg_acrossyrs(self, my_value)   
-        xticklabels = range(my_freq)        
+        my_freq, my_value = get_daily_avg_acrossyrs(self, my_value)  
+        xticks = np.arange(30,360,30) - 1  
+        xticklabels = np.arange(30,360,30)        
     print("check dims:", self.postproc_freq, my_freq, my_value.shape)              
     
     # Plot sensitivity
@@ -138,7 +134,8 @@ def plot_sens_v(self, v, my_value, my_title, my_outfile):
         patches.append(mpatches.Patch(facecolor=color, hatch=hatch, edgecolor='gray', label=label))
     
     # Adjust the axis and labels
-    ax.set_xticks(x_pos)
+    ax.set_xlim(0, my_freq)
+    ax.set_xticks(xticks)
     ax.set_xticklabels(xticklabels)            
     ax.set_xlabel(self.postproc_freq)
     ax.set_ylabel('Sensitivity Index')

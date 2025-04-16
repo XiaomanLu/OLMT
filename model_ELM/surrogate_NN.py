@@ -18,6 +18,7 @@ def train_surrogate(self,myvars):
     vname=var
     nparms = self.nparms_ensemble
     nqoi   = self.output[vname].shape[0]
+    # print("check:", nqoi)
 
     # Extract outputs and samples 
     y = self.output[vname].transpose()

@@ -114,17 +114,17 @@ def postprocess_ensemble(n):
 ####################################################### MAIN #######################################################
 
 ### Dynamic paras
-# caseid='20250320'
-# site='WH'
+#caseid='20250320'
+#site='WH'
 caseid='20250328'
 site='CL'
 
-UQ_only = False # True - directly read from pklfile.
+UQ_only = True # True - directly read from pklfile.
 # False - re-generate the "output" dict and overwrite pklfile. Using "sbatch job_urban.sh" after "conda deactivate"!!!
-my_postproc_vars = ['H2OSOI', 'TLAI_pft','QVEGE_pft','QVEGT_pft']
-my_postproc_vars_pft = ['H2OSOI', 'TLAI_pft7', 'TLAI_pft13', 'QVEGE_pft7','QVEGE_pft13', 'QVEGT_pft7','QVEGT_pft13']
-# my_postproc_vars = ['TLAI']  
-# my_postproc_vars_pft = ['TLAI']
+# my_postproc_vars = ['H2OSOI', 'TLAI_pft','QVEGE_pft','QVEGT_pft']
+# my_postproc_vars_pft = ['H2OSOI', 'TLAI_pft7', 'TLAI_pft13', 'QVEGE_pft7','QVEGE_pft13', 'QVEGT_pft7','QVEGT_pft13']
+my_postproc_vars = ['TLAI_pft']  ## no pft here!
+my_postproc_vars_pft = ['TLAI_pft7']
 
 # fixed paras
 PATH_URBAN = '/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/'
@@ -151,11 +151,11 @@ if (not UQ_only):
     mycase.postproc_vars=my_postproc_vars 
     mycase.postproc_startyear=2014    #Starting year to postprocess/calibrate
     mycase.postproc_endyear= 2024
-    mycase.postproc_freq = 'monthly'  #options; ['daily', 'monthly', 'annual']
+    mycase.postproc_freq = 'daily'  #options; ['daily', 'monthly', 'annual']
     mycase.read_parm_list(PATH_URBAN+'OLMT/runscripts/parm_file_Knoxville')    
     samples_file=PATH_URBAN+f'OLMT/parm_samples/mcsamples_{caseid}_4000.txt'
     mycase.samples = (np.loadtxt(samples_file,)).transpose()
-    mycase.nsamples=4000 # 00  
+    mycase.nsamples=40 # 00  
     mycase.np_ensemble=mycase.samples.shape[0] #The number of self.ensemble_parms
     mycase.npernode=128
     mycase.obs={}
@@ -229,15 +229,17 @@ if (not UQ_only):
 #------UQ -----------------------------   
 #Train surrogate models; break out the individual PFTs here
 mycase.train_surrogate(my_postproc_vars_pft)    #will produce plot only here; cannot change location 
+mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/') #save
+
 
 #run GSA (Global Sensitivity Analysis)
 mycase.GSA(my_postproc_vars_pft) # will break out into individual pft outputs
+mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/') #save
+
 
 #plot GSA
 mycase.Lineplot_GSA(my_postproc_vars_pft, caseid, site)
 
-#Save postprocessed output
-mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/')
 
 
 

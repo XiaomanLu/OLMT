@@ -1,6 +1,6 @@
 #!/bin/bash 
-#SBATCH --nodes=2 
-#SBATCH --ntasks=20     #Total tasks for n nodes
+#SBATCH --nodes=4 
+#SBATCH --ntasks=80     #Total tasks for n nodes
 #SBATCH --account=CLI185 
 #SBATCH --time=24:00:00 
 #SBATCH --partition=batch_ccsi 
@@ -14,7 +14,4 @@ source activate myenv
 
 cd ${SLURM_SUBMIT_DIR} 
 python manage_ensemble_postproc_Knoxville.py
-<<<<<<< HEAD
 
-=======
->>>>>>> d2e84d283083e80179aabf0501128df668937253
