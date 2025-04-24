@@ -156,7 +156,7 @@ if (not UQ_only):
     samples_file=PATH_URBAN+f'OLMT/parm_samples/mcsamples_{caseid}_4000.txt'
     mycase.samples = (np.loadtxt(samples_file,)).transpose()
     mycase.nsamples=40 # 00  
-    mycase.np_ensemble=mycase.samples.shape[0] #The number of self.ensemble_parms
+    mycase.np_ensemble=mycase.samples.shape[0] #The number of self.ensemble_parms, like 28
     mycase.npernode=128
     mycase.obs={}
     mycase.obs_err={}
@@ -228,18 +228,20 @@ if (not UQ_only):
 
 #------UQ -----------------------------   
 #Train surrogate models; break out the individual PFTs here
-mycase.train_surrogate(my_postproc_vars_pft)    #will produce plot only here; cannot change location 
-mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/') #save
-
+# mycase.train_surrogate(my_postproc_vars_pft)    #will produce plot only here; cannot change location 
 
 #run GSA (Global Sensitivity Analysis)
-mycase.GSA(my_postproc_vars_pft) # will break out into individual pft outputs
-mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/') #save
-
+# mycase.GSA(my_postproc_vars_pft) # will break out into individual pft outputs
 
 #plot GSA
 mycase.Lineplot_GSA(my_postproc_vars_pft, caseid, site)
 
+# save post-processed results
+# mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/') #save
+
+
+# backup the result when process vars one-by-one
+# os.system(f"cp {PATH_URBAN}OLMT/pklfiles/{casename}.pkl {PATH_URBAN}OLMT/pklfiles/{casename}.pkl_{mycase.postproc_freq}_{my_postproc_vars_pft[0]}")
 
 
 
