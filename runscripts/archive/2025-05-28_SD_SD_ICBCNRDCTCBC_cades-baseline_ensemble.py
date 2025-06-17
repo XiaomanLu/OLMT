@@ -40,8 +40,8 @@ fates_nutrient = True      #Use FATES nutrient (parteh_mode = 2)
 nyears_ad      =  200      #number of years for ad spinup 
 nyears_final   =  400      #number of years for final spinup OR for SP run
 # run from 1850 to 2024, (2024-1850+1)
-# nyears_trans   =  175      #number of years for transient run 
-nyears_trans   =  175 - 10      #number of years for transient run
+nyears_trans   =  175      #number of years for transient run 
+# nyears_trans   =  175 - 10      #number of years for transient run
                            #  If -1, the final year will be the last year of forcing data.
 run_startyear  = 1850      #Starting year for transient run OR for SP run
 
@@ -87,15 +87,15 @@ postproc_freq      = 'daily'   #Can be daily, monthly, annual
 #
 #Treatment cases will use the same compset as the last case, and will inherit case_options unless overwritten
 #Specify additional options for treatments as a list (one for each desired treatment)
-# nyears_treatment = 0 
-nyears_treatment = 10                                     #number of years to run treatment simulation (assumed all same)
+nyears_treatment = 0 
+# nyears_treatment = 10                                     #number of years to run treatment simulation (assumed all same)
 startyear_treatment = run_startyear + nyears_trans   #Starting year (assuming to start from end of transient
 treatment_options={}
 
 
 ### sensitivity analysis for T and CO2
-treatments=['T0.00','T2.25','T4.50','T6.75','T0.00eCO2','T2.25eCO2','T4.50eCO2','T6.75eCO2']
-# treatments=['T6.75eCO2']
+# treatments=['T0.00','T2.25','T4.50','T6.75','T0.00eCO2','T2.25eCO2','T4.50eCO2','T6.75eCO2']
+treatments=['T6.75eCO2']
 treatment_options['suffix'] = treatments
 treatment_options['metdir'] = []
 treatment_options['add_co2'] = []
@@ -231,7 +231,7 @@ for site in sites:
 
   for c in range(0,ncases):
     mysuffix = '_'.join(filter(None,[suffix[c],case_suffix]))    #mysuffix = ad_spinup     
-    mycaseid = date.today().strftime('%Y%m%d') + '_' + site
+    mycaseid = date.today().isoformat() + '_' + site + '_' + mysuffix
     print(f"mycaseid: {mycaseid}")
     
     cases[c] = model_ELM.ELMcase(caseid=mycaseid,compset=compsets[c], site=site, \

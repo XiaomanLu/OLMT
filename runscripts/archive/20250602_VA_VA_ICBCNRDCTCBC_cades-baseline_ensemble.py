@@ -94,8 +94,8 @@ treatment_options={}
 
 
 ### sensitivity analysis for T and CO2
-treatments=['T0.00','T2.25','T4.50','T6.75','T0.00eCO2','T2.25eCO2','T4.50eCO2','T6.75eCO2']
-# treatments=['T6.75eCO2']
+# treatments=['T0.00','T2.25','T4.50','T6.75','T0.00eCO2','T2.25eCO2','T4.50eCO2','T6.75eCO2']
+treatments=['T6.75eCO2']
 treatment_options['suffix'] = treatments
 treatment_options['metdir'] = []
 treatment_options['add_co2'] = []

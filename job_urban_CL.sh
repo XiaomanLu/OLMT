@@ -1,6 +1,6 @@
 #!/bin/bash 
-#SBATCH --nodes=4 
-#SBATCH --ntasks=80     #Total tasks for n nodes
+#SBATCH --nodes=1 
+#SBATCH --ntasks=20     #Total tasks for n nodes
 #SBATCH --account=CLI185 
 #SBATCH --time=24:00:00 
 #SBATCH --partition=batch_ccsi 
@@ -13,5 +13,5 @@ module load python/3.11-anaconda3
 source activate myenv 
 
 cd ${SLURM_SUBMIT_DIR} 
-python manage_ensemble_postproc_Knoxville.py
+python manage_ensemble_postproc_Knoxville.py 20250613 CL
 

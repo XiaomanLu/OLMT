@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #Python code used to manage the ensemble simulations and perform post-processing of model output.
-import sys,os, time
+import sys, os, time
 import numpy as np
 import subprocess
 import pickle
@@ -112,137 +112,143 @@ def postprocess_ensemble(n):
 
 
 ####################################################### MAIN #######################################################
+### TODO: backup pklfiles; rename pklfiles in linux terminal (rename .pkl .pkl_actual_ensemble_run 2025061*.pkl)
 
 ### Dynamic paras
-#caseid='20250320'
-#site='WH'
-caseid='20250328'
-site='CL'
+date = sys.argv[1]
+site = sys.argv[2]
+caseid=f'{date}_{site}'
 
-UQ_only = True # True - directly read from pklfile.
+UQ_only = False # True - directly read from pklfile.
 # False - re-generate the "output" dict and overwrite pklfile. Using "sbatch job_urban.sh" after "conda deactivate"!!!
-# my_postproc_vars = ['H2OSOI', 'TLAI_pft','QVEGE_pft','QVEGT_pft']
-# my_postproc_vars_pft = ['H2OSOI', 'TLAI_pft7', 'TLAI_pft13', 'QVEGE_pft7','QVEGE_pft13', 'QVEGT_pft7','QVEGT_pft13']
-my_postproc_vars = ['TLAI_pft']  ## no pft here!
-my_postproc_vars_pft = ['TLAI_pft7']
+my_postproc_vars = ['H2OSOI', 'TLAI_pft','QVEGE_pft','QVEGT_pft']
+my_postproc_vars_pft = ['H2OSOI', 'TLAI_pft7', 'TLAI_pft13', 'QVEGE_pft7','QVEGE_pft13', 'QVEGT_pft7','QVEGT_pft13']
+# my_postproc_vars = ['QVEGT_pft']  ## no pft here!
+# my_postproc_vars_pft = ['QVEGT_pft13']
 
 # fixed paras
 PATH_URBAN = '/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/'
 compset='ICB20TRCNPRDCTCBC'
-suffix=''
-casename=caseid+'_'+site+'_'+compset            
-postproc_only = True
 
 
-#Make sure to back up the old pkl files before this step!!!
-#Create case object
-if (not UQ_only):  
-    os.system(f"cp {PATH_URBAN}OLMT/pklfiles/{casename}.pkl_actual_ensemble_run {PATH_URBAN}OLMT/pklfiles/{casename}.pkl")
+suffix_array = ['_T0.00','_T0.00eCO2','_T2.25','_T2.25eCO2','_T4.50','_T4.50eCO2','_T6.75','_T6.75eCO2']
+for suffix in suffix_array:
+    # suffix='_T6.75eCO2'
+    # suffix = ""
     
-    mycase = model_ELM.ELMcase(caseid=caseid,compset=compset,site=site, \
-            sitegroup='KNX', machine='cases-baseline', \
-            runroot=PATH_URBAN+'e3sm_run', \
-            caseroot=PATH_URBAN+'e3sm_cases', \
-           )       
-    mycase.casename=caseid+'_'+site+'_'+compset #+'_'+suffix
-    mycase.startyear=2014   #Starting year of run; doesn't have to be same as actual run
-    mycase.run_n=11         #Number of years for the run (to post process)
-    mycase.postproc_pfts=[7,13]  #PFTs to postprocess
-    mycase.postproc_vars=my_postproc_vars 
-    mycase.postproc_startyear=2014    #Starting year to postprocess/calibrate
-    mycase.postproc_endyear= 2024
-    mycase.postproc_freq = 'daily'  #options; ['daily', 'monthly', 'annual']
-    mycase.read_parm_list(PATH_URBAN+'OLMT/runscripts/parm_file_Knoxville')    
-    samples_file=PATH_URBAN+f'OLMT/parm_samples/mcsamples_{caseid}_4000.txt'
-    mycase.samples = (np.loadtxt(samples_file,)).transpose()
-    mycase.nsamples=40 # 00  
-    mycase.np_ensemble=mycase.samples.shape[0] #The number of self.ensemble_parms, like 28
-    mycase.npernode=128
-    mycase.obs={}
-    mycase.obs_err={}
-    mycase.OLMTdir=PATH_URBAN+'OLMT'    
-    mycase.pscaler={}
-    mycase.yscaler={}
-    mycase.rundir_UQ = mycase.runroot+'/UQ/'+mycase.casename
-else:
-    myfile=open('./pklfiles/'+casename+'.pkl','rb')
-    mycase=pickle.load(myfile)
+    casename=caseid+'_'+site+'_'+compset+suffix           
+    postproc_only = True
     
     
-
-# post-process
-if (not UQ_only):
-    workdir = os.getcwd()
+    #Make sure to back up the old pkl files before this step!!!
+    #Create case object
+    if (not UQ_only):  
+        os.system(f"cp {PATH_URBAN}OLMT/pklfiles/{casename}.pkl_actual_ensemble_run {PATH_URBAN}OLMT/pklfiles/{casename}.pkl")
+        
+        mycase = model_ELM.ELMcase(caseid=caseid,compset=compset,site=site, \
+                sitegroup='KNX', machine='cases-baseline', \
+                runroot=PATH_URBAN+'e3sm_run', \
+                caseroot=PATH_URBAN+'e3sm_cases', \
+               )       
+        mycase.casename=casename 
+        mycase.startyear=2015   #Starting year of run; doesn't have to be same as actual run
+        mycase.run_n=10         #Number of years for the run (to post process)
+        mycase.postproc_pfts=[7,13]  #PFTs to postprocess
+        mycase.postproc_vars=my_postproc_vars 
+        mycase.postproc_startyear=2015    #Starting year to postprocess/calibrate
+        mycase.postproc_endyear= 2024
+        mycase.postproc_freq = 'annual'  #options; ['daily', 'monthly', 'annual']
+        mycase.read_parm_list(PATH_URBAN+'OLMT/runscripts/parm_file_Knoxville')     #Input
+        samples_file=PATH_URBAN+f'OLMT/parm_samples/mcsamples_{caseid}_4000.txt'    #Output
+        mycase.samples = (np.loadtxt(samples_file,)).transpose()
+        mycase.nsamples=4000 # 00  
+        mycase.np_ensemble=mycase.samples.shape[0] #The number of self.ensemble_parms, like 28
+        mycase.npernode=128
+        mycase.obs={}
+        mycase.obs_err={}
+        mycase.OLMTdir=PATH_URBAN+'OLMT'    
+        mycase.pscaler={}
+        mycase.yscaler={}
+        mycase.rundir_UQ = mycase.runroot+'/UQ/'+mycase.casename
+    else:
+        myfile=open('./pklfiles/'+casename+'.pkl','rb')
+        mycase=pickle.load(myfile)
+        
+        
     
-    processes=[]
-    process_jobnum=[]
-    process_hang=[]    #Keep track of how long process has been hanging
-    mycase.postprocessed=np.zeros([mycase.nsamples],int)
-    n_job = 1
-    if (mycase.noslurm == False):
-       process_nodes = []
-       mynodes = get_nodelist()
+    # post-process
+    if (not UQ_only):
+        workdir = os.getcwd()
+        
+        processes=[]
+        process_jobnum=[]
+        process_hang=[]    #Keep track of how long process has been hanging
+        mycase.postprocessed=np.zeros([mycase.nsamples],int)
+        n_job = 1
+        if (mycase.noslurm == False):
+           process_nodes = []
+           mynodes = get_nodelist()
+        
+        #Run the simulations    
+        while (n_job <= mycase.nsamples):
+             pactive = active_processes(processes,process_jobnum,process_hang)
+             if (sum(pactive) < int(mycase.np_ensemble)):
+                jobst = str(100000+n_job)
+                rundir = mycase.runroot+'/UQ/'+mycase.casename+'/g'+jobst[1:]+'/'
+                log_file_path = f"{rundir}e3sm_log.txt"            
+                #Copy relevant files
+                if not postproc_only:
+                    mycase.ensemble_copy(n_job)
+                with open(log_file_path, "w") as log_file:
+                   if (mycase.noslurm == False):
+                        node_submit=get_node_submit(pactive,process_nodes,mynodes)
+                        command = ['srun -n '+str(mycase.np)+' -c 1 -w '+mynodes[node_submit]+' '+mycase.exeroot+'/e3sm.exe']
+                        if postproc_only:
+                            command = 'ls'
+                        process_nodes.append(node_submit)
+                   else:
+                        command = [mycase.exeroot+'/e3sm.exe']
+                   process = subprocess.Popen(command, shell=True, stderr=subprocess.STDOUT, cwd=rundir, stdout=log_file)
+                   processes.append(process)
+                   process_jobnum.append(n_job)
+                   process_hang.append(0)
+                n_job=n_job+1
+             else:
+                 time.sleep(0.1)
+        
+        while (sum(pactive) > 0):
+           pactive = active_processes(processes,process_jobnum,process_hang)
+           time.sleep(0.1)
     
-    #Run the simulations    
-    while (n_job <= mycase.nsamples):
-         pactive = active_processes(processes,process_jobnum,process_hang)
-         if (sum(pactive) < int(mycase.np_ensemble)):
-            jobst = str(100000+n_job)
-            rundir = mycase.runroot+'/UQ/'+mycase.casename+'/g'+jobst[1:]+'/'
-            log_file_path = f"{rundir}e3sm_log.txt"            
-            #Copy relevant files
-            if not postproc_only:
-                mycase.ensemble_copy(n_job)
-            with open(log_file_path, "w") as log_file:
-               if (mycase.noslurm == False):
-                    node_submit=get_node_submit(pactive,process_nodes,mynodes)
-                    command = ['srun -n '+str(mycase.np)+' -c 1 -w '+mynodes[node_submit]+' '+mycase.exeroot+'/e3sm.exe']
-                    if postproc_only:
-                        command = 'ls'
-                    process_nodes.append(node_submit)
-               else:
-                    command = [mycase.exeroot+'/e3sm.exe']
-               process = subprocess.Popen(command, shell=True, stderr=subprocess.STDOUT, cwd=rundir, stdout=log_file)
-               processes.append(process)
-               process_jobnum.append(n_job)
-               process_hang.append(0)
-            n_job=n_job+1
-         else:
-             time.sleep(0.1)
+        #custom outputs (change units, sum variables, etc)
+        # We can do additional processing of the output time series here. 
+        ## mycase.output['NPP_correct'] = (mycase.output['FATES_NPP']-mycase.output['FATES_EXCESS_RESP'])*24*3600*365*1000
+        ## mycase.output['NUP'] = (mycase.output['FATES_NH4UPTAKE']+mycase.output['FATES_NO3UPTAKE'])*24*3600*365*1000
+        ## mycase.postproc_vars.append('NPP_correct')
+        ## mycase.postproc_vars.append('NUP')       
+         
+        # save case
+        mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/')
     
-    while (sum(pactive) > 0):
-       pactive = active_processes(processes,process_jobnum,process_hang)
-       time.sleep(0.1)
-
-    #custom outputs (change units, sum variables, etc)
-    # We can do additional processing of the output time series here. 
-    ## mycase.output['NPP_correct'] = (mycase.output['FATES_NPP']-mycase.output['FATES_EXCESS_RESP'])*24*3600*365*1000
-    ## mycase.output['NUP'] = (mycase.output['FATES_NH4UPTAKE']+mycase.output['FATES_NO3UPTAKE'])*24*3600*365*1000
-    ## mycase.postproc_vars.append('NPP_correct')
-    ## mycase.postproc_vars.append('NUP')       
-     
-    # save case
-    mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/')
-
-
-
-#------UQ -----------------------------   
-#Train surrogate models; break out the individual PFTs here
-# mycase.train_surrogate(my_postproc_vars_pft)    #will produce plot only here; cannot change location 
-
-#run GSA (Global Sensitivity Analysis)
-# mycase.GSA(my_postproc_vars_pft) # will break out into individual pft outputs
-
-#plot GSA
-mycase.Lineplot_GSA(my_postproc_vars_pft, caseid, site)
-
-# save post-processed results
-# mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/') #save
-
-
-# backup the result when process vars one-by-one
-# os.system(f"cp {PATH_URBAN}OLMT/pklfiles/{casename}.pkl {PATH_URBAN}OLMT/pklfiles/{casename}.pkl_{mycase.postproc_freq}_{my_postproc_vars_pft[0]}")
-
+    
+    
+    # #------UQ -----------------------------   
+    #Train surrogate models; break out the individual PFTs here
+    mycase.train_surrogate(my_postproc_vars_pft)    #will produce plot only here; cannot change location 
+    
+    #run GSA (Global Sensitivity Analysis)
+    mycase.GSA(my_postproc_vars_pft) # will break out into individual pft outputs
+    
+    #plot GSA
+    mycase.Lineplot_GSA(my_postproc_vars_pft, caseid, site)
+    
+    # save post-processed results
+    mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/') #save  
+    
+    
+    # backup the result when process vars one-by-one
+    # os.system(f"cp {PATH_URBAN}OLMT/pklfiles/{casename}.pkl {PATH_URBAN}OLMT/pklfiles/{casename}.pkl_{mycase.postproc_freq}_{my_postproc_vars_pft[0]}")
+    
 
 
 

@@ -35,4 +35,4 @@ e3sm model version found: 50a3447f16
 Batch_system_type is slurm
 job is case.run USER_REQUESTED_WALLTIME 24:0:00 USER_REQUESTED_QUEUE None WALLTIME_FORMAT %H:%M:%S
 job is case.st_archive USER_REQUESTED_WALLTIME None USER_REQUESTED_QUEUE None WALLTIME_FORMAT %H:%M:%S
- Creating Case directory /gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/e3sm_cases/20250423_SD_ICB20TRCNPRDCTCBC_T6.75eCO2
+ Creating Case directory /gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/e3sm_cases/20250613_CL_CL_ICB20TRCNPRDCTCBC_T6.75eCO2

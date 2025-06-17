@@ -94,7 +94,7 @@ def plot_sens_v(self, v, my_value, my_title, my_outfile):
         my_freq, my_value = get_daily_avg_acrossyrs(self, my_value)  
         xticks = np.arange(30,360,30) - 1  
         xticklabels = np.arange(30,360,30)        
-    print("check dims:", self.postproc_freq, my_freq, my_value.shape)              
+    # print("check dims:", self.postproc_freq, my_freq, my_value.shape)              
     
     # Plot sensitivity
     fig, ax = plt.subplots(figsize=(10, 6))  
@@ -132,10 +132,15 @@ def plot_sens_v(self, v, my_value, my_title, my_outfile):
         # Create a legend entry
         label = f"{parm}{self.ensemble_pfts[p]}" 
         patches.append(mpatches.Patch(facecolor=color, hatch=hatch, edgecolor='gray', label=label))
+        
+        # to order the sensivity among paramers based on multi-year mean sensitivity
+        pft = self.ensemble_pfts[p]
+        print(my_title, ",", v, ",", f"{parm}_{pft}", ",", np.nanmean(my_value[p, :]))  
+        
     
     # Adjust the axis and labels
-    ax.set_xlim(0, my_freq)
-    ax.set_xticks(xticks)
+    # ax.set_xlim(0, my_freq)    
+    ax.set_xticks(xticks)    
     ax.set_xticklabels(xticklabels)            
     ax.set_xlabel(self.postproc_freq)
     ax.set_ylabel('Sensitivity Index')
@@ -176,13 +181,13 @@ def Lineplot_GSA(self, myvars, caseid, site):
         if v != 'taxis':                
             ## plot total sensitivity
             my_value = self.sens_tot[v]
-            my_title = f'Total Sensitivity Indices for {v}'
+            my_title = f'Total Sensitivity Indices for {v}: {caseid}'
             my_outfile = f'{UQ_output}/{caseid}_{site}_sens_tot_{v}_{self.postproc_freq}.png'
             plot_sens_v(self, v, my_value, my_title, my_outfile)
             
             ## plot main sensitivity
             my_value = self.sens_main[v]
-            my_title = f'Main Sensitivity Indices for {v}'
+            my_title = f'Main Sensitivity Indices for {v}: {caseid}'
             my_outfile = f'{UQ_output}/{caseid}_{site}_sens_main_{v}_{self.postproc_freq}.png'
             plot_sens_v(self, v, my_value, my_title, my_outfile)
 
