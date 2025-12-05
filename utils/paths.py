@@ -1,0 +1,6 @@
+PATH_OUT = "/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/Analysis/output"
+PATH_DATA = "/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/Analysis/data"
+PATH_OBS = "/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/Analysis/data/observations"
+PATH_ELM_OUT = "/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/e3sm_run"
+PATH_SURFDATA = "/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/Analysis/data/e3sm_related/GSWP3_daymet/TILES_KXTN/cpl_bypass_full"
+PATH_ELM_INPUT = "/gpfs/wolf2/cades/cli185/proj-shared/ywo/E3SM/inputdata"

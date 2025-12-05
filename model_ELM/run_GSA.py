@@ -109,6 +109,7 @@ def plot_sens_v(self, v, my_value, my_title, my_outfile):
     patches = []  # Store legend handles            
     x_pos = np.arange(my_freq)
     
+    datalist = []
     for p in range(self.nparms_ensemble):
         parm = self.ensemble_parms[p]
         if parm not in parm_colors:
@@ -135,8 +136,14 @@ def plot_sens_v(self, v, my_value, my_title, my_outfile):
         
         # to order the sensivity among paramers based on multi-year mean sensitivity
         pft = self.ensemble_pfts[p]
-        print(my_title, ",", v, ",", f"{parm}_{pft}", ",", np.nanmean(my_value[p, :]))  
         
+        # append GSA values
+        datalist.append({
+            'GSA_type': my_title[0:5], #main or total sensitivity
+            'Output': v,
+            'Parameter': f"{parm}_{pft}",
+            'GSA_values': my_value[p, :].tolist()  # numpy array: GSA values for years from postproc_startyear-postproc_endyear (e.g., 2015-2024)            
+        })        
     
     # Adjust the axis and labels
     # ax.set_xlim(0, my_freq)    
@@ -172,24 +179,39 @@ def plot_sens_v(self, v, my_value, my_title, my_outfile):
     plt.savefig(my_outfile, bbox_inches='tight')
     plt.close(fig)  # Close the figure to free memory
     
+    # Save datalist to df
+    df = pd.DataFrame(datalist)
+    return(df)
+    
+
+
 
 def Lineplot_GSA(self, myvars, caseid, site):    
     UQ_output = './UQ_output/' + self.casename + '/GSA'
     os.makedirs(UQ_output, exist_ok=True)  # Ensures the directory exists   
     
+    df_all = pd.DataFrame()
     for v in myvars:  
         if v != 'taxis':                
             ## plot total sensitivity
             my_value = self.sens_tot[v]
             my_title = f'Total Sensitivity Indices for {v}: {caseid}'
             my_outfile = f'{UQ_output}/{caseid}_{site}_sens_tot_{v}_{self.postproc_freq}.png'
-            plot_sens_v(self, v, my_value, my_title, my_outfile)
-            
+            df_total_sens = plot_sens_v(self, v, my_value, my_title, my_outfile)
+            df_all = pd.concat([df_all, df_total_sens], ignore_index=True)
+
             ## plot main sensitivity
             my_value = self.sens_main[v]
             my_title = f'Main Sensitivity Indices for {v}: {caseid}'
             my_outfile = f'{UQ_output}/{caseid}_{site}_sens_main_{v}_{self.postproc_freq}.png'
-            plot_sens_v(self, v, my_value, my_title, my_outfile)
+            df_main_sens = plot_sens_v(self, v, my_value, my_title, my_outfile)
+            df_all = pd.concat([df_all, df_main_sens], ignore_index=True)     
+    
+    # print(df_all)
+    return(df_all)
+       
+            
+            
 
 
 

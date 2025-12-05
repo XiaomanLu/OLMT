@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #Python code used to manage the ensemble simulations and perform post-processing of model output.
 import sys, os, time
+import pandas as pd
 import numpy as np
 import subprocess
 import pickle
@@ -119,12 +120,12 @@ date = sys.argv[1]
 site = sys.argv[2]
 caseid=f'{date}_{site}'
 
-UQ_only = False # True - directly read from pklfile.
+UQ_only = True # True - directly read from pklfile.
 # False - re-generate the "output" dict and overwrite pklfile. Using "sbatch job_urban.sh" after "conda deactivate"!!!
 my_postproc_vars = ['H2OSOI', 'TLAI_pft','QVEGE_pft','QVEGT_pft']
 my_postproc_vars_pft = ['H2OSOI', 'TLAI_pft7', 'TLAI_pft13', 'QVEGE_pft7','QVEGE_pft13', 'QVEGT_pft7','QVEGT_pft13']
 # my_postproc_vars = ['QVEGT_pft']  ## no pft here!
-# my_postproc_vars_pft = ['QVEGT_pft13']
+# my_postproc_vars_pft = ['QVEGT_pft7']
 
 # fixed paras
 PATH_URBAN = '/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/'
@@ -132,6 +133,8 @@ compset='ICB20TRCNPRDCTCBC'
 
 
 suffix_array = ['_T0.00','_T0.00eCO2','_T2.25','_T2.25eCO2','_T4.50','_T4.50eCO2','_T6.75','_T6.75eCO2']
+# suffix_array = ['_T0.00','_T0.00eCO2']
+df_all = pd.DataFrame()
 for suffix in suffix_array:
     # suffix='_T6.75eCO2'
     # suffix = ""
@@ -231,7 +234,7 @@ for suffix in suffix_array:
         mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/')
     
     
-    
+    '''
     # #------UQ -----------------------------   
     #Train surrogate models; break out the individual PFTs here
     mycase.train_surrogate(my_postproc_vars_pft)    #will produce plot only here; cannot change location 
@@ -246,10 +249,20 @@ for suffix in suffix_array:
     mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/') #save  
     
     
-    # backup the result when process vars one-by-one
-    # os.system(f"cp {PATH_URBAN}OLMT/pklfiles/{casename}.pkl {PATH_URBAN}OLMT/pklfiles/{casename}.pkl_{mycase.postproc_freq}_{my_postproc_vars_pft[0]}")
+    ### backup the result when process vars one-by-one
+    ### os.system(f"cp {PATH_URBAN}OLMT/pklfiles/{casename}.pkl {PATH_URBAN}OLMT/pklfiles/{casename}.pkl_{mycase.postproc_freq}_{my_postproc_vars_pft[0]}")
+    '''
+
+
+    # #------export GSA to csv -----------------------------   
+    df_tmp = mycase.Lineplot_GSA(my_postproc_vars_pft, caseid, site)
+    df_tmp['treatment'] = suffix    
+    df_all = pd.concat([df_all, df_tmp], ignore_index=True) 
     
 
+# export df to csv
+outfile = PATH_URBAN + f'/OLMT/UQ_output/GSA_param_sensitivity_{caseid}.csv'
+df_all.to_csv(outfile, index=False)
 
 
 
