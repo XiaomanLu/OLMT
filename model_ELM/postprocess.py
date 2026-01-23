@@ -74,12 +74,37 @@ def postprocess(self, var, index=0, gindex=0, startyear=-1, endyear=9999, hnum=0
           file_list = file_list[:-1]
     os.system('ncrcat -O -v '+var.split('_pft')[0]+' '+' '.join(file_list)+' '+var+'.nc')
     myoutput = Dataset(var+'.nc','r')
+
+    def get_weights():
+        boundaries = np.array([0, 1.75, 4.51, 9.06, 16.55])
+        target_depth = 10.0
+        layer_tops = boundaries[:-1]
+        layer_bottoms = boundaries[1:]
+        effective_bottoms = np.minimum(layer_bottoms, target_depth)
+        thicknesses = np.maximum(effective_bottoms - layer_tops, 0)
+        weights = thicknesses / thicknesses.sum()
+        return weights
+
     if (myoutput[var.split('_pft')[0]][:].ndim == 4):
-      #2D output with vertical structure
-      values = myoutput[var.split('_pft')[0]][:,index,yindex,xindex]
+      if var.split('_pft')[0] == 'H2OSOI':
+        # use top 10cm soil moisture instead of topmost layer
+        weights = get_weights()
+        values = 0
+        for windex in range(0,len(weights)):
+          values = myoutput[var.split('_pft')[0]][:,windex,yindex,xindex]
+      else:
+        #2D output with vertical structure
+        values = myoutput[var.split('_pft')[0]][:,index,yindex,xindex]
     elif (myoutput[var.split('_pft')[0]][:].ndim == 3):
-      #2D output or 1D output with vertical structure (currently assumes 1D)
-      values = myoutput[var.split('_pft')[0]][:,index,gindex]
+      if var.split('_pft')[0] == 'H2OSOI':
+        # use top 10cm soil moisture instead of topmost layer
+        weights = get_weights()
+        values = 0
+        for windex in range(0,len(weights)):
+            values = myoutput[var.split('_pft')[0]][:,windex,gindex]
+      else:
+        #2D output or 1D output with vertical structure (currently assumes 1D)
+        values = myoutput[var.split('_pft')[0]][:,index,gindex]
     else:
       #1D output (unstructured grid)
       values = myoutput[var.split('_pft')[0]][:,gindex]

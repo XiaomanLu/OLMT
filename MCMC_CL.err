@@ -1,0 +1,19 @@
+Lmod has detected the following error: The following module(s) are unknown:
+"python/3.11-anaconda3"
+
+Please check the spelling or version number. Also try "module spider ..."
+It is also possible your cache file is out-of-date; it may help to try:
+  $ module --ignore_cache load "python/3.11-anaconda3"
+
+Also make sure that all modulefiles written in TCL start with the string
+#%Module
+
+
+
+Traceback (most recent call last):
+  File "/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/OLMT/manage_ensemble_MCMC_Knoxville.py", line 230, in <module>
+    mycase.create_pkl(outdir=mycase.OLMTdir+'/UQ_output/{casename}/')
+  File "/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/OLMT/model_ELM/main.py", line 820, in create_pkl
+    with open(outdir+'/'+self.casename+'.pkl','wb') as file_out:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/OLMT/UQ_output/{casename}//20250613_CL_CL_ICB20TRCNPRDCTCBC_T0.00.pkl'

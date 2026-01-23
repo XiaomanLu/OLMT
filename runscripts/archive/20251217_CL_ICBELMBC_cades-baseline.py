@@ -32,16 +32,16 @@ mettype = 'site'           #Site or reanalysis product
 case_suffix = ''           #Identifier for cases (leave blank if none)
 
 use_cpl_bypass = True     #Coupler bypass for meteorology
-use_SP         = False     #Use Satellite phenolgy mode (doesn't yet work with FATES-SP)
+use_SP         = True     #Use Satellite phenolgy mode (doesn't yet work with FATES-SP)
 use_fates      = False     #Use FATES compsets
-fates_nutrient = True      #Use FATES nutrient (parteh_mode = 2)
+fates_nutrient = False      #Use FATES nutrient (parteh_mode = 2)
 
-nyears_ad      =  200      #number of years for ad spinup 
-nyears_final   =  400      #number of years for final spinup OR for SP run
-# run from 1850 to 2024, (2024-1850+1)
-nyears_trans   =  175 - 10      #number of years for transient run 
+nyears_ad      =  0        #number of years for ad spinup 
+nyears_final   =  65       #number of years for final spinup OR for SP run
+# run from 1960 to 2024, (2024-1960+1)
+nyears_trans   =  0.       #number of years for transient run 
                            #  If -1, the final year will be the last year of forcing data.
-run_startyear  = 1850      #Starting year for transient run OR for SP run
+run_startyear  = 1960      #Starting year for transient run OR for SP run
 
 
 #---------------------Optional inputs via namelist variables------------------------
@@ -57,7 +57,11 @@ case_options['surffile'] = inputdata+f'/lnd/clm2/PTCLM/1x1pt_KNX-{sites}/surfdat
 # case_options['use_top_solar_rad'] = '.true.' ###uncomment for SKY_VIEW 
 # case_options['add_co2'] = 500
 # case_options['startdate_add_co2'] = "20230101"
-
+case_options['use_lai_streams'] = '.true.'
+case_options['model_year_align_lai'] = 2015
+case_options['stream_year_first_lai'] = 2015
+case_options['stream_year_last_lai'] = 2024
+case_options['stream_fldfilename_lai'] = inputdata+f'/lnd/clm2/PTCLM/1x1pt_KNX-{sites}/MODISPFTLAI_0.5x0.5_c140711_KNX-{sites}.nc'
 
 # Options to change output frequency and output variables
 #case_options['hist_mfilt'] = '1, 1'
@@ -66,7 +70,7 @@ case_options['surffile'] = inputdata+f'/lnd/clm2/PTCLM/1x1pt_KNX-{sites}/surfdat
 case_options['hist_dov2xy'] = '.true., .false.'
 case_options['hist_mfilt'] = '365, 365'
 case_options['hist_nhtfrq'] = '-24, -24'
-case_options['hist_fincl2'] = " 'QVEGE','QVEGT','TLAI' "
+case_options['hist_fincl2'] = " 'QVEGE','QVEGT','TLAI','TSAI'"
 
 
 #--------------------ensemble options------------------------------------------------
@@ -75,9 +79,9 @@ parm_list      = ''    #Set parameter list (leave blank for no ensemble)
 nsamples       =  1000    #number of samples to run
 np_ensemble    =  384    #number of ensemble numbers to run in parallel (MUST be <= nsamples)
 ensemble_file  = ''     #File containing samples (if blank, OLMT will generate one)
-postproc_vars  = ['GPP','ER','NPP','NEE','TLAI','FSH','EFLX_LH_TOT']  #Variables to automatically post-process
-postproc_startyear = 2000
-postproc_endyear   = 2007
+postproc_vars  = ['GPP','ER','NPP','NEE','TLAI','TSAI','FSH','EFLX_LH_TOT']  #Variables to automatically post-process
+postproc_startyear = 2015
+postproc_endyear   = 2024
 postproc_freq      = 'monthly'   #Can be daily, monthly, annual
 
 #----------------------Define treatment cases ----------------------------------------
@@ -85,7 +89,7 @@ postproc_freq      = 'monthly'   #Can be daily, monthly, annual
 #Treatment cases will use the same compset as the last case, and will inherit case_options unless overwritten
 #Specify additional options for treatments as a list (one for each desired treatment)
 nyears_treatment = 10                                     #number of years to run treatment simulation (assumed all same)
-startyear_treatment = run_startyear + nyears_trans   #Starting year (assuming to start from end of transient
+startyear_treatment = run_startyear + nyears_final   #Starting year (assuming to start from end of SP mode
 treatment_options={}
 
 
@@ -119,7 +123,7 @@ for treatment in treatments:
         treatment_options['add_co2'].append(0)  
     
     treatment_options['startdate_add_co2'].append(f"{startyear_treatment}0101")
-      
+
 #---------------End of user input -----------------------------------------------------
 
 
@@ -280,12 +284,16 @@ for site in sites:
     #Set the initial data file (if depends on previous case)
     cases[c].dependcase=''
     if (depends[c] >= 0):
-      #Set the iniial data file from the last year of the prev case
-      finidat_year = cases[depends[c]].run_n+1
-      if ('20TR' in cases[depends[c]].compset or 'trans' in cases[depends[c]].compset):
-          finidat_year = 1850+cases[depends[c]].run_n
-      cases[c].set_finidat_file(finidat_case=cases[depends[c]].casename, \
-              finidat_year=finidat_year)
+      if (istreatment[c]):
+        cases[c].set_finidat_file(finidat_case=cases[depends[c]].casename, \
+                finidat_year=startyear_treatment)
+      else:
+        #Set the iniial data file from the last year of the prev case
+        finidat_year = cases[depends[c]].run_n+1
+        if ('20TR' in cases[depends[c]].compset or 'trans' in cases[depends[c]].compset):
+            finidat_year = 1850+cases[depends[c]].run_n
+        cases[c].set_finidat_file(finidat_case=cases[depends[c]].casename, \
+                finidat_year=finidat_year)
       cases[c].dependcase = cases[depends[c]].casename
 
     #Set postprocessing variables for ensemble
