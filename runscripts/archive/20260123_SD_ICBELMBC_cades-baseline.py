@@ -84,17 +84,16 @@ postproc_startyear = 2015
 postproc_endyear   = 2024
 postproc_freq      = 'monthly'   #Can be daily, monthly, annual
 
-
 #----------------------Define treatment cases ----------------------------------------
 #
 #Treatment cases will use the same compset as the last case, and will inherit case_options unless overwritten
 #Specify additional options for treatments as a list (one for each desired treatment)
-nyears_treatment = 0                                # number of years to run treatment simulation (assumed all same)
+nyears_treatment = 10                                     #number of years to run treatment simulation (assumed all same)
 startyear_treatment = run_startyear + nyears_final   #Starting year (assuming to start from end of SP mode
 treatment_options={}
 
 
-### sensitivity analysis for T [OLD]
+### sensitivity analysis for T
 # # Define temperature increases for sensitivity analysis
 # temp_increases = [0.0, 2.0, 4.0, 6.0, 8.0]  # Temperature steps in °C
 # treatments = [f"T{int(t*100)/100}" for t in temp_increases]  # Naming treatments
@@ -106,24 +105,24 @@ treatment_options={}
 #     treatment_options['metdir'].append(case_options['metdir']+f'/Treatment_{treatment}/')  #Each case has its own met data directory
 
 
-# ### sensitivity analysis for T and CO2
-# treatments=['T0.00','T2.25','T4.50','T6.75','T9.00','T0.00eCO2','T2.25eCO2','T4.50eCO2','T6.75eCO2','T9.00eCO2']
-# treatment_options['suffix'] = treatments
-# treatment_options['metdir'] = []
-# treatment_options['add_co2'] = []
-# treatment_options['startdate_add_co2'] = []
+### sensitivity analysis for T and CO2
+treatments=['T0.00','T2.25','T4.50','T6.75','T9.00','T0.00eCO2','T2.25eCO2','T4.50eCO2','T6.75eCO2','T9.00eCO2']
+treatment_options['suffix'] = treatments
+treatment_options['metdir'] = []
+treatment_options['add_co2'] = []
+treatment_options['startdate_add_co2'] = []
 
-# for treatment in treatments:
-#     print(treatment)
-#     temp_value = treatment.split('eCO2')[0]    
-#     treatment_options['metdir'].append(case_options['metdir']+f'/Treatment_{temp_value}/')     
+for treatment in treatments:
+    print(treatment)
+    temp_value = treatment.split('eCO2')[0]    
+    treatment_options['metdir'].append(case_options['metdir']+f'/Treatment_{temp_value}/')     
     
-#     if "eCO2" in treatment:
-#         treatment_options['add_co2'].append(500)      
-#     else:
-#         treatment_options['add_co2'].append(0)  
+    if "eCO2" in treatment:
+        treatment_options['add_co2'].append(500)      
+    else:
+        treatment_options['add_co2'].append(0)  
     
-#     treatment_options['startdate_add_co2'].append(f"{startyear_treatment}0101")
+    treatment_options['startdate_add_co2'].append(f"{startyear_treatment}0101")
 
 #---------------End of user input -----------------------------------------------------
 

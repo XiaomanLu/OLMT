@@ -1,11 +1,11 @@
-Compset longname is 20TR_SATM_ELM%CNPRDCTCBC_SICE_SOCN_MOSART_SGLC_SWAV
+Compset longname is 2000_SATM_ELM%SPBC_SICE_SOCN_MOSART_SGLC_SWAV
 Compset specification file is /gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/E3SM/components/elm/cime_config/config_compsets.xml
 Automatically adding SIAC to compset
 Automatically adding SESP to compset
 Compset forcing is 
-Com forcing is Historical 1850 to 2000 transient:
+Com forcing is present day:
 ATM component is Stub atm component
-LND component is ELM with :CN :C-N-P, nutrient competition via relative demand, ctc soil cascade with black carbon deposition :
+LND component is ELM with :Satellite phenology :Satellite phenology with black carbon deposition :
 ICE component is Stub ice component
 OCN component is Stub ocn component
 ROF component is MOSART:
@@ -14,11 +14,10 @@ WAV component is Stub wave component
 IAC component is Stub iac component
 ESP component is Stub external system processing (ESP) component
 Pes     specification file is /gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/E3SM/components/elm/cime_config/config_pes.xml
-Compset specific settings: name is RUN_STARTDATE and value is 1850-01-01
 Machine is cades-baseline
 Pes setting: grid match    is l%1.9x2.5|l%0.9x1.25|l%360x720cru 
 Pes setting: grid          is a%null_l%360x720cru_oi%null_r%r05_g%null_w%null_z%null_m%360x720cru 
-Pes setting: compset       is 20TR_SATM_ELM%CNPRDCTCBC_SICE_SOCN_MOSART_SGLC_SWAV_SIAC_SESP 
+Pes setting: compset       is 2000_SATM_ELM%SPBC_SICE_SOCN_MOSART_SGLC_SWAV_SIAC_SESP 
 Pes setting: tasks       is {'NTASKS_ATM': 64, 'NTASKS_LND': 64, 'NTASKS_ROF': 64, 'NTASKS_ICE': 64, 'NTASKS_OCN': 64, 'NTASKS_GLC': 64, 'NTASKS_WAV': 64, 'NTASKS_CPL': 64} 
 Pes setting: threads     is {} 
 Pes setting: rootpe      is {} 
@@ -27,7 +26,7 @@ Pes other settings: {}
 Pes other settings append: {}
 Pes comments: none
 setting additional fields from config_pes: {}, append {}
- Compset is: 20TR_SATM_ELM%CNPRDCTCBC_SICE_SOCN_MOSART_SGLC_SWAV_SIAC_SESP 
+ Compset is: 2000_SATM_ELM%SPBC_SICE_SOCN_MOSART_SGLC_SWAV_SIAC_SESP 
  Grid is: a%null_l%360x720cru_oi%null_r%r05_g%null_w%null_z%null_m%360x720cru 
  Components in compset are: ['satm', 'elm', 'sice', 'socn', 'mosart', 'sglc', 'swav', 'siac', 'sesp'] 
 No charge_account info available, using value from PROJECT
@@ -35,4 +34,4 @@ e3sm model version found: 50a3447f16
 Batch_system_type is slurm
 job is case.run USER_REQUESTED_WALLTIME 24:0:00 USER_REQUESTED_QUEUE None WALLTIME_FORMAT %H:%M:%S
 job is case.st_archive USER_REQUESTED_WALLTIME None USER_REQUESTED_QUEUE None WALLTIME_FORMAT %H:%M:%S
- Creating Case directory /gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/e3sm_cases/20260122_SD_ICB20TRCNPRDCTCBC_T9.00eCO2
+ Creating Case directory /gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/e3sm_cases/20260127_SD_ICBELMBC
