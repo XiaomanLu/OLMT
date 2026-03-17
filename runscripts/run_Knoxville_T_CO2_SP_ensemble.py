@@ -4,6 +4,7 @@ import model_ELM
 from OLMTutils import get_machine_info, get_site_info
 import os
 import numpy as np
+from datetime import date
 
 
 #Get default directories, automatically detect machine if machine_name=''
@@ -11,7 +12,7 @@ import numpy as np
 machine = "cades-baseline"
 rootdir = "/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban"
 inputdata = "/gpfs/wolf2/cades/cli185/proj-shared/ywo/E3SM/inputdata"
-queue = "batch"   #"batch_ccsi"
+queue = "batch_ccsi"
 
 #set rootdir and inputdata below if you want to override defaults
 caseroot= rootdir+'/e3sm_cases'
@@ -44,6 +45,7 @@ nyears_trans   =  0.       #number of years for transient run
                            #  If -1, the final year will be the last year of forcing data.
 run_startyear  = 1960      #Starting year for transient run OR for SP run
 
+numproc = 1
 
 #---------------------Optional inputs via namelist variables------------------------
 #Define a dictionary to handle namelist options.
@@ -76,26 +78,36 @@ case_options['hist_fincl2'] = " 'QVEGE','QVEGT','TLAI','TSAI'"
 
 
 #--------------------ensemble options------------------------------------------------
+ENSEMBLE_ANALYSIS = True #Lux @2026-03-16
 
-parm_list      = ''    #Set parameter list (leave blank for no ensemble)
-nsamples       =  1000    #number of samples to run
-np_ensemble    =  384    #number of ensemble numbers to run in parallel (MUST be <= nsamples)
-ensemble_file  = ''     #File containing samples (if blank, OLMT will generate one)
-postproc_vars  = ['GPP','ER','NPP','NEE','TLAI','TSAI','FSH','EFLX_LH_TOT']  #Variables to automatically post-process
-postproc_startyear = 2015
-postproc_endyear   = 2024
-postproc_freq      = 'monthly'   #Can be daily, monthly, annual
-
+if ENSEMBLE_ANALYSIS:
+    parm_list      = '/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/OLMT/runscripts/parm_file_Knoxville'    #Set parameter list (leave blank for no ensemble)
+    nsamples       =  4000    #number of samples to run
+    np_ensemble    =  400     #number of ensemble numbers to run in parallel (MUST be <= nsamples)
+    ensemble_file  = ''     #File containing samples (if blank, OLMT will generate one)
+    postproc_vars  = []  #Variables to automatically post-process
+    postproc_startyear = 2015
+    postproc_endyear   = 2024
+    postproc_freq      = 'daily'   #Can be daily, monthly, annual
+else:
+    parm_list      = ''    #Set parameter list (leave blank for no ensemble)
+    nsamples       =  1000    #number of samples to run
+    np_ensemble    =  384    #number of ensemble numbers to run in parallel (MUST be <= nsamples)
+    ensemble_file  = ''     #File containing samples (if blank, OLMT will generate one)
+    postproc_vars  = ['GPP','ER','NPP','NEE','TLAI','TSAI','FSH','EFLX_LH_TOT']  #Variables to automatically post-process
+    postproc_startyear = 2015
+    postproc_endyear   = 2024
+    postproc_freq      = 'monthly'   #Can be daily, monthly, annual
 
 #----------------------Define treatment cases ----------------------------------------
 #
 #Treatment cases will use the same compset as the last case, and will inherit case_options unless overwritten
 #Specify additional options for treatments as a list (one for each desired treatment)
-TREATMENT_ANALYSIS = True #Lux @2026-03-16
+TREATMENT_ANALYSIS = False #Lux @2026-03-16
 
 if TREATMENT_ANALYSIS:
     nyears_treatment = 10                                # number of years to run treatment simulation (assumed all same)
-    startyear_treatment = run_startyear + nyears_final   # Starting year (assuming to start from end of SP mode
+    startyear_treatment = run_startyear + nyears_final - nyears_treatment  #Starting year (assuming to start from end of SP mode
     treatment_options={}    
     
     ### sensitivity analysis for T and CO2
@@ -119,9 +131,8 @@ if TREATMENT_ANALYSIS:
         
 else:
     nyears_treatment = 0                                # number of years to run treatment simulation (assumed all same)
-    startyear_treatment = run_startyear + nyears_final  # Starting year (assuming to start from end of SP mode
+    startyear_treatment = run_startyear + nyears_final - nyears_treatment   #Starting year (assuming to start from end of SP mode
     treatment_options={}
-    
 
 #---------------End of user input -----------------------------------------------------
 
@@ -240,12 +251,21 @@ for site in sites:
   scriptdir=os.getcwd()
 
   for c in range(0,ncases):
-    mysuffix = '_'.join(filter(None,[suffix[c],case_suffix]))
-
-    cases[c] = model_ELM.ELMcase(caseid='',compset=compsets[c], site=site, \
-        caseroot=caseroot,runroot=runroot,inputdata=inputdata,modelroot=modelroot, \
-        machine=machine, exeroot=exeroot, suffix=mysuffix,  \
-        res='hcru_hcru', nyears=nyears[c],startyear=startyear[c])
+    mysuffix = '_'.join(filter(None,[suffix[c],case_suffix]))    
+    
+    if ENSEMBLE_ANALYSIS:
+        mycaseid = date.today().strftime('%Y%m%d') + '_' + site
+        print(f"mycaseid: {mycaseid}")    
+        cases[c] = model_ELM.ELMcase(caseid=mycaseid,compset=compsets[c], site=site, \
+            caseroot=caseroot,runroot=runroot,inputdata=inputdata,modelroot=modelroot, \
+            machine=machine, exeroot=exeroot, suffix=mysuffix, np=numproc,  \
+            res='hcru_hcru', nyears=nyears[c],startyear=startyear[c])
+    else:
+        cases[c] = model_ELM.ELMcase(caseid='',compset=compsets[c], site=site, \
+            caseroot=caseroot,runroot=runroot,inputdata=inputdata,modelroot=modelroot, \
+            machine=machine, exeroot=exeroot, suffix=mysuffix,  \
+            res='hcru_hcru', nyears=nyears[c],startyear=startyear[c])
+        
     cases[c].queue = queue
 
     #Create the case

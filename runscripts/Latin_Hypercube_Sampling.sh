@@ -5,15 +5,22 @@
 # ./Latin_Hypercube_Sampling.sh
 
 set -euo pipefail
-N=24
 
-SURFDATA_DIR="/gpfs/wolf2/cades/cli185/proj-shared/ywo/E3SM/inputdata/lnd/clm2/PTCLM/1x1pt_KNX-SD"
+N=24  #~12min each run
+site_shortname="SD"
+
+SURFDATA_DIR="/gpfs/wolf2/cades/cli185/proj-shared/ywo/E3SM/inputdata/lnd/clm2/PTCLM/1x1pt_KNX-${site_shortname}"
 OUTDIR_BASE="/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/e3sm_run"
-RUNNAME_BASE="20260127_SD_ICBELMBC"
-
+RUNNAME_BASE="20260127_${site_shortname}_ICBELMBC"
 PYTHONFILE="/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban/OLMT/runscripts/run_Knoxville_T_CO2_SP.py"
 
-for i in $(seq -f "%02g" 9 24); do
+# test
+echo "$site_shortname"
+echo "$SURFDATA_DIR"
+echo "$RUNNAME_BASE"
+
+# process
+for i in $(seq -f "%02g" 1 $N); do
     printf "\n\n===== OAT run %s =====\n" "$i"
 
     # -----------------------------
@@ -34,7 +41,7 @@ for i in $(seq -f "%02g" 9 24); do
     # -----------------------------
     # 3. Submit job
     # -----------------------------
-    printf "r\n" | python "$PYTHONFILE" SD
+    printf "r\n" | python "$PYTHONFILE" "$site_shortname"
 
     # -----------------------------
     # 4. Wait for lnd.log to appear

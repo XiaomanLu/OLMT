@@ -11,7 +11,7 @@ import numpy as np
 machine = "cades-baseline"
 rootdir = "/gpfs/wolf2/cades/cli185/proj-shared/lux5/Project3_Urban"
 inputdata = "/gpfs/wolf2/cades/cli185/proj-shared/ywo/E3SM/inputdata"
-queue = "batch"   #"batch_ccsi"
+queue = "batch_ccsi"
 
 #set rootdir and inputdata below if you want to override defaults
 caseroot= rootdir+'/e3sm_cases'
@@ -95,7 +95,7 @@ TREATMENT_ANALYSIS = True #Lux @2026-03-16
 
 if TREATMENT_ANALYSIS:
     nyears_treatment = 10                                # number of years to run treatment simulation (assumed all same)
-    startyear_treatment = run_startyear + nyears_final   # Starting year (assuming to start from end of SP mode
+    startyear_treatment = run_startyear + nyears_final - nyears_treatment  #Starting year (assuming to start from end of SP mode
     treatment_options={}    
     
     ### sensitivity analysis for T and CO2
@@ -119,7 +119,7 @@ if TREATMENT_ANALYSIS:
         
 else:
     nyears_treatment = 0                                # number of years to run treatment simulation (assumed all same)
-    startyear_treatment = run_startyear + nyears_final  # Starting year (assuming to start from end of SP mode
+    startyear_treatment = run_startyear + nyears_final - nyears_treatment   #Starting year (assuming to start from end of SP mode
     treatment_options={}
     
 

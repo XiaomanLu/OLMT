@@ -116,10 +116,10 @@ def postprocess_ensemble(n):
 ### TODO: backup pklfiles; rename pklfiles in linux terminal (rename .pkl .pkl_actual_ensemble_run 2025061*.pkl)
 
 ### Dynamic paras
-date = sys.argv[1]
-site = sys.argv[2]
-#date = '20250613'
-#site = 'CL'
+#date = sys.argv[1]
+#site = sys.argv[2]
+date = '20250613'
+site = 'CL'
 caseid=f'{date}_{site}'
 
 UQ_only = False # True directly read from pklfile.
@@ -235,6 +235,8 @@ if (not UQ_only):
 # @Xiaoman Lu
 
 
+
+
 #run MCMC
 #Set intial values for parameters
 if (mycase.obs):
@@ -250,3 +252,6 @@ if (mycase.obs):
         
     #Save postprocessed output
     mycase.create_pkl(outdir=mycase.OLMTdir+'/pklfiles/')
+
+
+
